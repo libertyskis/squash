@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Squash Tracker 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --jf: #E8593C; --kf: #3B8BD4;
+    --bg: #0e0e10; --surface: #17171a; --surface2: #1e1e22;
+    --border: rgba(255,255,255,0.07); --text: #f0ede8;
+    --muted: rgba(240,237,232,0.45);
+    --mono: 'DM Mono', monospace; --display: 'Syne', sans-serif;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh; }
+  #loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; gap:16px; font-size:13px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:var(--jf); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #app { display:none; }
+  header { padding:36px 40px 28px; border-bottom:1px solid var(--border); display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .title-block h1 { font-family:var(--display); font-size:32px; font-weight:800; letter-spacing:-0.02em; line-height:1; }
+  .title-block h1 span.jf { color:var(--jf); } .title-block h1 span.kf { color:var(--kf); }
+  .title-block p { margin-top:6px; font-size:11px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; }
+  .last-updated { font-size:11px; color:var(--muted); text-align:right; }
+  .refresh-btn { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:6px 12px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-family:var(--mono); font-size:11px; cursor:pointer; transition:all 0.15s; }
+  .refresh-btn:hover { border-color:rgba(255,255,255,0.2); color:var(--text); }
+  .main { padding:32px 40px; max-width:1400px; }
+  .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:32px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
+  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent,var(--border)); }
+  .stat-card.jf{--accent:var(--jf);} .stat-card.kf{--accent:var(--kf);} .stat-card.n{--accent:rgba(255,255,255,0.15);}
+  .stat-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; }
+  .stat-value { font-family:var(--display); font-size:28px; font-weight:800; letter-spacing:-0.02em; line-height:1; }
+  .stat-sub { font-size:10px; color:var(--muted); margin-top:6px; }
+  .charts-grid { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+  .charts-grid-bottom { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
+  .chart-card h2 { font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .chart-sub { font-size:11px; color:rgba(240,237,232,0.25); margin-bottom:18px; }
+  .chart-wrap { position:relative; width:100%; }
+  .h2h-wrap { display:flex; flex-direction:column; align-items:center; gap:16px; padding:12px 0; }
+  .h2h-ring-wrap { position:relative; width:160px; height:160px; }
+  .h2h-ring-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+  .h2h-detail { display:flex; gap:24px; justify-content:center; }
+  .h2h-player { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .h2h-player-name { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); }
+  .h2h-player-score { font-family:var(--display); font-size:24px; font-weight:800; }
+  .pace-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .pace-name { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; width:24px; }
+  .pace-bar-bg { flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+  .pace-bar-fill { height:100%; border-radius:3px; }
+  .pace-val { font-size:11px; color:var(--text); width:48px; text-align:right; }
+  .target-section { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px; }
+  .target-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
+  .target-card h2 { font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); margin-bottom:18px; }
+  .tbar-bg { height:10px; background:rgba(255,255,255,0.06); border-radius:5px; overflow:hidden; }
+  .tbar-fill { height:100%; border-radius:5px; }
+  .table-section { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:32px; }
+  .table-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .table-header h2 { font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead th { padding:10px 24px; text-align:left; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; font-weight:500; background:var(--surface2); }
+  tbody tr { border-top:1px solid var(--border); } tbody tr:hover { background:rgba(255,255,255,0.03); }
+  tbody td { padding:10px 24px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; letter-spacing:0.06em; font-weight:500; text-transform:uppercase; }
+  .bjf{background:rgba(232,89,60,0.15);color:var(--jf);} .bkf{background:rgba(59,139,212,0.15);color:var(--kf);} .bdraw{background:rgba(255,255,255,0.06);color:var(--muted);}
+  .err { padding:28px 32px; background:rgba(232,89,60,0.08); border:1px solid rgba(232,89,60,0.2); border-radius:12px; color:#E8593C; line-height:2; font-size:13px; max-width:520px; }
+  .err a { color:var(--jf); }
+  @media(max-width:900px){ header{padding:24px 20px 20px;} .main{padding:20px;} .charts-grid,.charts-grid-bottom,.target-section{grid-template-columns:1fr;} }
+  @media(max-width:600px){ .stats-row{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><span id="loading-msg">Loading live data...</span></div>
+<div id="app">
+  <header>
+    <div class="title-block">
+      <h1><svg viewBox="0 0 24 24" width="28" height="28" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:3px"><circle cx="12" cy="12" r="11" fill="#111"/><circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><circle cx="9" cy="11" r="1.2" fill="rgba(255,255,255,0.75)"/><circle cx="15" cy="13" r="1.2" fill="rgba(255,255,255,0.75)"/></svg><span class="jf">JF</span> vs <span class="kf">KF</span> — Squash 2026</h1>
+      <p>Live from Google Sheets · Auto-refreshes every 5 min</p>
+    </div>
+    <div class="last-updated">
+      <div id="updated-time">—</div>
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </header>
+  <div class="main">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h2>Points race</h2><p class="chart-sub">Cumulative season points over time</p>
+        <div class="chart-wrap" style="height:280px"><canvas id="chartLine"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Head-to-head</h2><p class="chart-sub">JF vs KF best-of matches</p>
+        <div class="h2h-wrap" id="h2h-wrap"></div>
+      </div>
+    </div>
+    <div class="charts-grid-bottom">
+      <div class="chart-card">
+        <h2>Win distribution</h2><p class="chart-sub">Best-of match wins per player</p>
+        <div class="chart-wrap" style="height:200px"><canvas id="chartWins"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Activity pace</h2><p class="chart-sub">Points per play day</p>
+        <div id="pace-wrap" style="padding-top:4px"></div>
+      </div>
+    </div>
+    <div class="target-section">
+      <div class="target-card"><h2>Target progress</h2><div id="target-wrap"></div></div>
+      <div class="chart-card">
+        <h2>Monthly activity</h2><p class="chart-sub">Play days per month</p>
+        <div class="chart-wrap" style="height:180px"><canvas id="chartMonthly"></canvas></div>
+      </div>
+    </div>
+    <div class="table-section">
+      <div class="table-header">
+        <h2>Recent JF vs KF matches</h2>
+        <span style="font-size:11px;color:var(--muted)">Best-of-5 only</span>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Result</th><th>Games</th><th>Winner</th><th>Notes</th></tr></thead>
+        <tbody id="matches-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRIOe0CpFTTxwnZrxIU5p6fCNu9xon-98q1nDM0FimHnQa3l4DXofE3DCW2RMto7bOLOW69ZowIBXFl/pub?output=csv';
+const TARGETS = { JF: 1000, KF: 1000 };
+let lineChart, winsChart, monthlyChart, h2hChart;
+
+function parseCSV(text) {
+  const rows = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    const cols = []; let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim()); rows.push(cols);
+  }
+  return rows;
+}
+
+const toNum = v => { const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? null : n; };
+
+async function loadData() {
+  try {
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const rows = parseCSV(await resp.text());
+
+    const chartDates=[], jfPts=[], kfPts=[], matches=[];
+    let jfWins=0, kfWins=0, totalPlayDays=0;
+    const monthlyMap={};
+    const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    for (const row of rows) {
+      const cd=(row[19]||'').trim(), cjf=(row[20]||'').trim(), ckf=(row[21]||'').trim();
+      if (cd && cd!=='Date' && cd!=='Chart Data' && toNum(cjf)!==null && toNum(ckf)!==null) {
+        chartDates.push(cd); jfPts.push(toNum(cjf)); kfPts.push(toNum(ckf));
+      }
+      const rn = toNum(row[0]);
+      if (rn!==null && rn>=1 && rn<=100) {
+        const date=(row[1]||'').trim(), played=(row[2]||'').trim().toUpperCase();
+        const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
+        const gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
+        const notes=(row[21]||'').trim();
+        if (played==='Y') {
+          totalPlayDays++;
+          const parts=date.split('-');
+          if (parts.length===2){ const m=parts[1].substring(0,3); monthlyMap[m]=(monthlyMap[m]||0)+1; }
+        }
+        if (bestJF!==null && bestKF!==null && (bestJF+bestKF)>=2) {
+          const winner=bestJF>bestKF?'JF':bestKF>bestJF?'KF':null;
+          if(winner==='JF') jfWins++; else if(winner==='KF') kfWins++;
+          matches.push({date,bestJF,bestKF,gamesJF,gamesKF,winner,notes});
+        }
+      }
+    }
+
+    const lastJF=jfPts.length?jfPts[jfPts.length-1]:0;
+    const lastKF=kfPts.length?kfPts[kfPts.length-1]:0;
+    const leader=lastJF>lastKF?'JF':lastKF>lastJF?'KF':'TIE';
+    const gap=Math.abs(lastJF-lastKF);
+    const jfPace=totalPlayDays>0?(lastJF/totalPlayDays).toFixed(2):'—';
+    const kfPace=totalPlayDays>0?(lastKF/totalPlayDays).toFixed(2):'—';
+    const maxPace=Math.max(parseFloat(jfPace)||0,parseFloat(kfPace)||0,0.01);
+    const playMonths=MON_ORDER.filter(m=>monthlyMap[m]);
+    const monthlyCounts=playMonths.map(m=>monthlyMap[m]);
+
+    const TT = { backgroundColor:'#17171a', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, titleColor:'rgba(240,237,232,0.5)', bodyColor:'#f0ede8', padding:10, titleFont:{family:"'DM Mono',monospace",size:11}, bodyFont:{family:"'DM Mono',monospace",size:12} };
+    const SCALES = {
+      x:{ grid:{color:'rgba(255,255,255,0.04)',drawTicks:false}, border:{display:false}, ticks:{color:'rgba(240,237,232,0.35)',font:{family:"'DM Mono',monospace",size:10},maxRotation:0,autoSkip:true,maxTicksLimit:10} },
+      y:{ grid:{color:'rgba(255,255,255,0.04)',drawTicks:false}, border:{display:false}, ticks:{color:'rgba(240,237,232,0.3)',font:{family:"'DM Mono',monospace",size:10}}, beginAtZero:true }
+    };
+
+    // STAT CARDS
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card jf"><div class="stat-label">JF Points</div><div class="stat-value">${lastJF}</div><div class="stat-sub">Target: ${TARGETS.JF.toLocaleString()}</div></div>
+      <div class="stat-card kf"><div class="stat-label">KF Points</div><div class="stat-value">${lastKF}</div><div class="stat-sub">Target: ${TARGETS.KF.toLocaleString()}</div></div>
+      <div class="stat-card ${leader==='JF'?'jf':leader==='KF'?'kf':'n'}">
+        <div class="stat-label">Leading</div>
+        <div class="stat-value" style="color:${leader==='JF'?'var(--jf)':leader==='KF'?'var(--kf)':'var(--text)'}">${leader}</div>
+        <div class="stat-sub">by ${gap} pt${gap!==1?'s':''}</div>
+      </div>
+      <div class="stat-card n"><div class="stat-label">JF Wins</div><div class="stat-value" style="color:var(--jf)">${jfWins}</div><div class="stat-sub">vs KF best-of</div></div>
+      <div class="stat-card n"><div class="stat-label">KF Wins</div><div class="stat-value" style="color:var(--kf)">${kfWins}</div><div class="stat-sub">vs JF best-of</div></div>
+      <div class="stat-card n"><div class="stat-label">Play Days</div><div class="stat-value" style="color:var(--text)">${totalPlayDays}</div><div class="stat-sub">YTD 2026</div></div>
+    `;
+
+    // LINE CHART
+    if(lineChart) lineChart.destroy();
+    lineChart = new Chart(document.getElementById('chartLine'),{
+      type:'line',
+      data:{labels:chartDates,datasets:[
+        {label:'JF',data:jfPts,borderColor:'#E8593C',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:false},
+        {label:'KF',data:kfPts,borderColor:'#3B8BD4',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:false}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:TT},scales:SCALES}
+    });
+
+    // H2H DONUT
+    document.getElementById('h2h-wrap').innerHTML=`
+      <div class="h2h-ring-wrap">
+        <canvas id="chartH2H" width="160" height="160"></canvas>
+        <div class="h2h-ring-center">
+          <div style="font-family:var(--display);font-size:13px;font-weight:800;color:${jfWins>=kfWins?'var(--jf)':'var(--kf)'}">${jfWins>=kfWins?'JF':'KF'}</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">leads</div>
+        </div>
+      </div>
+      <div class="h2h-detail">
+        <div class="h2h-player"><div class="h2h-player-name">JF</div><div class="h2h-player-score" style="color:var(--jf)">${jfWins}</div></div>
+        <div style="display:flex;align-items:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">${jfWins+kfWins} played</div>
+        <div class="h2h-player"><div class="h2h-player-name">KF</div><div class="h2h-player-score" style="color:var(--kf)">${kfWins}</div></div>
+      </div>
+    `;
+    if(h2hChart) h2hChart.destroy();
+    h2hChart = new Chart(document.getElementById('chartH2H'),{
+      type:'doughnut',
+      data:{datasets:[{data:[jfWins,kfWins],backgroundColor:['#E8593C','#3B8BD4'],borderWidth:0}]},
+      options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+    });
+
+    // WINS BAR
+    if(winsChart) winsChart.destroy();
+    winsChart = new Chart(document.getElementById('chartWins'),{
+      type:'bar',
+      data:{labels:['JF wins','KF wins'],datasets:[{data:[jfWins,kfWins],backgroundColor:['rgba(232,89,60,0.7)','rgba(59,139,212,0.7)'],borderColor:['#E8593C','#3B8BD4'],borderWidth:1,borderRadius:4,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:TT},scales:SCALES}
+    });
+
+    // PACE
+    document.getElementById('pace-wrap').innerHTML=`
+      <div style="margin-bottom:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Points per play day</div>
+      <div class="pace-row">
+        <div class="pace-name" style="color:var(--jf)">JF</div>
+        <div class="pace-bar-bg"><div class="pace-bar-fill" style="width:${((parseFloat(jfPace)||0)/maxPace*100).toFixed(1)}%;background:var(--jf)"></div></div>
+        <div class="pace-val">${jfPace}</div>
+      </div>
+      <div class="pace-row">
+        <div class="pace-name" style="color:var(--kf)">KF</div>
+        <div class="pace-bar-bg"><div class="pace-bar-fill" style="width:${((parseFloat(kfPace)||0)/maxPace*100).toFixed(1)}%;background:var(--kf)"></div></div>
+        <div class="pace-val">${kfPace}</div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">${totalPlayDays} total play days in 2026</div>
+    `;
+
+    // TARGETS
+    const jfPct=Math.min(100,lastJF/TARGETS.JF*100).toFixed(1);
+    const kfPct=Math.min(100,lastKF/TARGETS.KF*100).toFixed(1);
+    document.getElementById('target-wrap').innerHTML=`
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em">JF</span><span style="font-size:11px;color:var(--muted)">${lastJF} / ${TARGETS.JF}</span></div>
+        <div class="tbar-bg"><div class="tbar-fill" style="width:${jfPct}%;background:var(--jf)"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">${jfPct}% · ${TARGETS.JF-lastJF} to go</div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em">KF</span><span style="font-size:11px;color:var(--muted)">${lastKF} / ${TARGETS.KF}</span></div>
+        <div class="tbar-bg"><div class="tbar-fill" style="width:${kfPct}%;background:var(--kf)"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">${kfPct}% · ${TARGETS.KF-lastKF} to go</div>
+      </div>
+    `;
+
+    // MONTHLY
+    if(monthlyChart) monthlyChart.destroy();
+    monthlyChart = new Chart(document.getElementById('chartMonthly'),{
+      type:'bar',
+      data:{labels:playMonths,datasets:[{data:monthlyCounts,backgroundColor:playMonths.map((_,i)=>i===playMonths.length-1?'rgba(232,89,60,0.7)':'rgba(255,255,255,0.12)'),borderColor:playMonths.map((_,i)=>i===playMonths.length-1?'#E8593C':'rgba(255,255,255,0.15)'),borderWidth:1,borderRadius:4,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:ctx=>`${ctx.parsed.y} play days`}}},scales:SCALES}
+    });
+
+    // TABLE
+    document.getElementById('matches-tbody').innerHTML=[...matches].reverse().slice(0,15).map(m=>{
+      const score=m.bestJF!==null&&m.bestKF!==null?`${m.bestJF}–${m.bestKF}`:'—';
+      const games=m.gamesJF!==null&&m.gamesKF!==null?`${m.gamesJF}–${m.gamesKF}`:'';
+      const bc=m.winner==='JF'?'bjf':m.winner==='KF'?'bkf':'bdraw';
+      const notes=m.notes.substring(0,55)+(m.notes.length>55?'…':'');
+      return `<tr>
+        <td style="color:var(--muted)">${m.date}</td>
+        <td style="font-family:var(--display);font-weight:700;font-size:15px">${score}</td>
+        <td style="color:var(--muted);font-size:11px">${games}</td>
+        <td><span class="badge ${bc}">${m.winner||'—'}</span></td>
+        <td style="color:var(--muted);font-size:11px">${notes}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('updated-time').textContent='Updated '+new Date().toLocaleTimeString();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+    setTimeout(loadData, 5*60*1000);
+
+  } catch(err) {
+    document.getElementById('loading').innerHTML=`
+      <div class="err">
+        <strong>Could not load sheet data</strong><br>
+        ${err.message}<br><br>
+        <a href="${CSV_URL}" target="_blank">↗ Test CSV URL directly</a><br><br>
+        <button class="refresh-btn" onclick="location.reload()" style="margin-top:4px;display:inline-flex">↻ Try again</button>
+      </div>
+    `;
+    console.error(err);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
