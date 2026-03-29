@@ -161,7 +161,7 @@ async function loadData() {
     const rows = parseCSV(await resp.text());
 
     const chartDates=[], jfPts=[], kfPts=[], matches=[];
-    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0;
+    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0, jfTracking=0, kfTracking=0;
     const monthlyMap={};
     const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -171,6 +171,11 @@ async function loadData() {
         const jfG=toNum(row[2]), kfG=toNum(row[3]);
         if (jfG!==null) lastJF=jfG;
         if (kfG!==null) lastKF=kfG;
+      }
+      if ((row[0]||'').trim().toLowerCase()==='tracking') {
+        const jfT=toNum(row[2]), kfT=toNum(row[3]);
+        if (jfT!==null) jfTracking=jfT;
+        if (kfT!==null) kfTracking=kfT;
       }
       // G5/H5: JF vs KF head-to-head points row — col 5 = "JF vs KF", col 6 = P1 score, col 7 = P2 score
       const rowF=(row[5]||'').trim();
@@ -297,16 +302,28 @@ async function loadData() {
     // TARGETS
     const jfPct=Math.min(100,lastJF/TARGETS.JF*100).toFixed(1);
     const kfPct=Math.min(100,lastKF/TARGETS.KF*100).toFixed(1);
+    const jfOnTrack = jfTracking >= TARGETS.JF;
+    const kfOnTrack = kfTracking >= TARGETS.KF;
+    const jfTrackColor = jfOnTrack ? '#27A06B' : '#E8593C';
+    const kfTrackColor = kfOnTrack ? '#27A06B' : '#E8593C';
+    const jfTrackMsg = jfOnTrack ? `On track for ${jfTracking.toLocaleString()} ↑` : `Tracking to ${jfTracking.toLocaleString()} — ${(TARGETS.JF-jfTracking).toLocaleString()} short`;
+    const kfTrackMsg = kfOnTrack ? `On track for ${kfTracking.toLocaleString()} ↑` : `Tracking to ${kfTracking.toLocaleString()} — ${(TARGETS.KF-kfTracking).toLocaleString()} short`;
     document.getElementById('target-wrap').innerHTML=`
       <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em">JF</span><span style="font-size:11px;color:var(--muted)">${lastJF} / ${TARGETS.JF}</span></div>
         <div class="tbar-bg"><div class="tbar-fill" style="width:${jfPct}%;background:var(--jf)"></div></div>
-        <div style="font-size:10px;color:var(--muted);margin-top:6px">${jfPct}% · ${TARGETS.JF-lastJF} to go</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div style="font-size:10px;color:var(--muted)">${jfPct}% · ${(TARGETS.JF-lastJF).toLocaleString()} to go</div>
+          <div style="font-size:10px;color:${jfTrackColor}">${jfTrackMsg}</div>
+        </div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em">KF</span><span style="font-size:11px;color:var(--muted)">${lastKF} / ${TARGETS.KF}</span></div>
         <div class="tbar-bg"><div class="tbar-fill" style="width:${kfPct}%;background:var(--kf)"></div></div>
-        <div style="font-size:10px;color:var(--muted);margin-top:6px">${kfPct}% · ${TARGETS.KF-lastKF} to go</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div style="font-size:10px;color:var(--muted)">${kfPct}% · ${(TARGETS.KF-lastKF).toLocaleString()} to go</div>
+          <div style="font-size:10px;color:${kfTrackColor}">${kfTrackMsg}</div>
+        </div>
       </div>
     `;
 
