@@ -105,7 +105,7 @@
         <div class="chart-wrap" style="height:200px"><canvas id="chartWins"></canvas></div>
       </div>
       <div class="chart-card">
-        <h2>Activity pace</h2><p class="chart-sub">Points per play day</p>
+        <h2>Activity pace</h2><p class="chart-sub">Games per play day</p>
         <div id="pace-wrap" style="padding-top:4px"></div>
       </div>
     </div>
@@ -161,7 +161,7 @@ async function loadData() {
     const rows = parseCSV(await resp.text());
 
     const chartDates=[], jfPts=[], kfPts=[], matches=[];
-    let jfWins=0, kfWins=0, totalPlayDays=0;
+    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0;
     const monthlyMap={};
     const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -176,6 +176,9 @@ async function loadData() {
         const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
         const gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
         const notes=(row[21]||'').trim();
+        const jfG=toNum(row[13]), kfG=toNum(row[14]);
+        if (jfG!==null) lastJF=jfG;
+        if (kfG!==null) lastKF=kfG;
         if (played==='Y') {
           totalPlayDays++;
           const parts=date.split('-');
@@ -188,9 +191,6 @@ async function loadData() {
         }
       }
     }
-
-    const lastJF=jfPts.length?jfPts[jfPts.length-1]:0;
-    const lastKF=kfPts.length?kfPts[kfPts.length-1]:0;
     const leader=lastJF>lastKF?'JF':lastKF>lastJF?'KF':'TIE';
     const gap=Math.abs(lastJF-lastKF);
     const jfPace=totalPlayDays>0?(lastJF/totalPlayDays).toFixed(2):'—';
@@ -207,8 +207,8 @@ async function loadData() {
 
     // STAT CARDS
     document.getElementById('stats-row').innerHTML = `
-      <div class="stat-card jf"><div class="stat-label">JF Points</div><div class="stat-value">${lastJF}</div><div class="stat-sub">Target: ${TARGETS.JF.toLocaleString()}</div></div>
-      <div class="stat-card kf"><div class="stat-label">KF Points</div><div class="stat-value">${lastKF}</div><div class="stat-sub">Target: ${TARGETS.KF.toLocaleString()}</div></div>
+      <div class="stat-card jf"><div class="stat-label">JF Games</div><div class="stat-value">${lastJF}</div><div class="stat-sub">Target: ${TARGETS.JF.toLocaleString()}</div></div>
+      <div class="stat-card kf"><div class="stat-label">KF Games</div><div class="stat-value">${lastKF}</div><div class="stat-sub">Target: ${TARGETS.KF.toLocaleString()}</div></div>
       <div class="stat-card ${leader==='JF'?'jf':leader==='KF'?'kf':'n'}">
         <div class="stat-label">Leading</div>
         <div class="stat-value" style="color:${leader==='JF'?'var(--jf)':leader==='KF'?'var(--kf)':'var(--text)'}">${leader}</div>
@@ -262,7 +262,7 @@ async function loadData() {
 
     // PACE
     document.getElementById('pace-wrap').innerHTML=`
-      <div style="margin-bottom:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Points per play day</div>
+      <div style="margin-bottom:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Games per play day</div>
       <div class="pace-row">
         <div class="pace-name" style="color:var(--jf)">JF</div>
         <div class="pace-bar-bg"><div class="pace-bar-fill" style="width:${((parseFloat(jfPace)||0)/maxPace*100).toFixed(1)}%;background:var(--jf)"></div></div>
