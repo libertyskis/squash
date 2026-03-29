@@ -166,6 +166,12 @@ async function loadData() {
     const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
     for (const row of rows) {
+      // "Played" stats row: col A = "Played", col C = JF games, col D = KF games
+      if ((row[0]||'').trim().toLowerCase()==='played') {
+        const jfG=toNum(row[2]), kfG=toNum(row[3]);
+        if (jfG!==null) lastJF=jfG;
+        if (kfG!==null) lastKF=kfG;
+      }
       const cd=(row[19]||'').trim(), cjf=(row[20]||'').trim(), ckf=(row[21]||'').trim();
       if (cd && cd!=='Date' && cd!=='Chart Data' && toNum(cjf)!==null && toNum(ckf)!==null) {
         chartDates.push(cd); jfPts.push(toNum(cjf)); kfPts.push(toNum(ckf));
@@ -176,9 +182,7 @@ async function loadData() {
         const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
         const gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
         const notes=(row[21]||'').trim();
-        const jfG=toNum(row[13]), kfG=toNum(row[14]);
-        if (jfG!==null) lastJF=jfG;
-        if (kfG!==null) lastKF=kfG;
+
         if (played==='Y') {
           totalPlayDays++;
           const parts=date.split('-');
