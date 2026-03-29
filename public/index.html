@@ -182,9 +182,6 @@ async function loadData() {
         const shutout=(row[21]||'').trim().toUpperCase();
         if (shutout==='JF') jfShutouts++;
         else if (shutout==='KF') kfShutouts++;
-        const shutout=(row[22]||'').trim().toUpperCase();
-        if (shutout==='JF') jfShutouts++;
-        else if (shutout==='KF') kfShutouts++;
 
         if (played==='Y') {
           totalPlayDays++;
