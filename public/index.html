@@ -172,6 +172,13 @@ async function loadData() {
         if (jfG!==null) lastJF=jfG;
         if (kfG!==null) lastKF=kfG;
       }
+      // G5/H5: JF vs KF head-to-head points row — col 5 = "JF vs KF", col 6 = P1 score, col 7 = P2 score
+      const rowF=(row[5]||'').trim();
+      if (rowF==='JF vs KF') {
+        const p1=toNum(row[6]), p2=toNum(row[7]);
+        if (p1!==null) jfWins=p1;
+        if (p2!==null) kfWins=p2;
+      }
       // col 12 = M = Point winner (JF or KF), col 1 = date
       const rn = toNum(row[0]);
       if (rn!==null && rn>=1 && rn<=100) {
@@ -190,7 +197,6 @@ async function loadData() {
         }
         if (bestJF!==null && bestKF!==null && (bestJF+bestKF)>=2) {
           const winner=bestJF>bestKF?'JF':bestKF>bestJF?'KF':null;
-          if(winner==='JF') jfWins++; else if(winner==='KF') kfWins++;
           matches.push({date,bestJF,bestKF,gamesJF,gamesKF,winner,notes});
         }
       }
