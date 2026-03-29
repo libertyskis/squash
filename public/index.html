@@ -91,7 +91,7 @@
     <div class="stats-row" id="stats-row"></div>
     <div class="charts-grid">
       <div class="chart-card">
-        <h2>Points race</h2><p class="chart-sub">Cumulative season points over time</p>
+        <h2>Points race</h2><p class="chart-sub">Cumulative best-of match points (col M)</p>
         <div class="chart-wrap" style="height:280px"><canvas id="chartLine"></canvas></div>
       </div>
       <div class="chart-card">
@@ -172,10 +172,7 @@ async function loadData() {
         if (jfG!==null) lastJF=jfG;
         if (kfG!==null) lastKF=kfG;
       }
-      const cd=(row[19]||'').trim(), cjf=(row[20]||'').trim(), ckf=(row[21]||'').trim();
-      if (cd && cd!=='Date' && cd!=='Chart Data' && toNum(cjf)!==null && toNum(ckf)!==null) {
-        chartDates.push(cd); jfPts.push(toNum(cjf)); kfPts.push(toNum(ckf));
-      }
+      // col 12 = M = Point winner (JF or KF), col 1 = date
       const rn = toNum(row[0]);
       if (rn!==null && rn>=1 && rn<=100) {
         const date=(row[1]||'').trim(), played=(row[2]||'').trim().toUpperCase();
@@ -195,6 +192,23 @@ async function loadData() {
         }
       }
     }
+    // Build cumulative points race from col 12 (M = match point winner)
+    let jfCum=0, kfCum=0;
+    for (const row of rows) {
+      const rn=toNum(row[0]);
+      if (rn!==null && rn>=1 && rn<=100) {
+        const date=(row[1]||'').trim();
+        const point=(row[12]||'').trim().toUpperCase();
+        if (point==='JF') jfCum++;
+        else if (point==='KF') kfCum++;
+        if (point==='JF' || point==='KF') {
+          chartDates.push(date);
+          jfPts.push(jfCum);
+          kfPts.push(kfCum);
+        }
+      }
+    }
+
     const leader=lastJF>lastKF?'JF':lastKF>lastJF?'KF':'TIE';
     const gap=Math.abs(lastJF-lastKF);
     const jfPace=totalPlayDays>0?(lastJF/totalPlayDays).toFixed(2):'—';
