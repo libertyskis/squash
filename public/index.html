@@ -216,7 +216,7 @@ async function loadData() {
       <div class="stat-card ${leader==='JF'?'jf':leader==='KF'?'kf':'n'}">
         <div class="stat-label">Leading</div>
         <div class="stat-value" style="color:${leader==='JF'?'var(--jf)':leader==='KF'?'var(--kf)':'var(--text)'}">${leader}</div>
-        <div class="stat-sub">by ${gap} pt${gap!==1?'s':''}</div>
+        <div class="stat-sub">by ${gap} games</div>
       </div>
       <div class="stat-card n"><div class="stat-label">JF Wins</div><div class="stat-value" style="color:var(--jf)">${jfWins}</div><div class="stat-sub">vs KF best-of</div></div>
       <div class="stat-card n"><div class="stat-label">KF Wins</div><div class="stat-value" style="color:var(--kf)">${kfWins}</div><div class="stat-sub">vs JF best-of</div></div>
