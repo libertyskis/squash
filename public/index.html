@@ -101,7 +101,7 @@
     </div>
     <div class="charts-grid-bottom">
       <div class="chart-card">
-        <h2>Win distribution</h2><p class="chart-sub">Best-of match wins per player</p>
+        <h2>Shutouts</h2><p class="chart-sub">3–0 match shutouts per player</p>
         <div class="chart-wrap" style="height:200px"><canvas id="chartWins"></canvas></div>
       </div>
       <div class="chart-card">
@@ -161,7 +161,7 @@ async function loadData() {
     const rows = parseCSV(await resp.text());
 
     const chartDates=[], jfPts=[], kfPts=[], matches=[];
-    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0;
+    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0;
     const monthlyMap={};
     const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -178,7 +178,13 @@ async function loadData() {
         const date=(row[1]||'').trim(), played=(row[2]||'').trim().toUpperCase();
         const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
         const gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
-        const notes=(row[21]||'').trim();
+        const notes=(row[22]||'').trim();
+        const shutout=(row[21]||'').trim().toUpperCase();
+        if (shutout==='JF') jfShutouts++;
+        else if (shutout==='KF') kfShutouts++;
+        const shutout=(row[22]||'').trim().toUpperCase();
+        if (shutout==='JF') jfShutouts++;
+        else if (shutout==='KF') kfShutouts++;
 
         if (played==='Y') {
           totalPlayDays++;
@@ -274,7 +280,7 @@ async function loadData() {
     if(winsChart) winsChart.destroy();
     winsChart = new Chart(document.getElementById('chartWins'),{
       type:'bar',
-      data:{labels:['JF wins','KF wins'],datasets:[{data:[jfWins,kfWins],backgroundColor:['rgba(232,89,60,0.7)','rgba(59,139,212,0.7)'],borderColor:['#E8593C','#3B8BD4'],borderWidth:1,borderRadius:4,borderSkipped:false}]},
+      data:{labels:['JF shutouts','KF shutouts'],datasets:[{data:[jfShutouts,kfShutouts],backgroundColor:['rgba(232,89,60,0.7)','rgba(59,139,212,0.7)'],borderColor:['#E8593C','#3B8BD4'],borderWidth:1,borderRadius:4,borderSkipped:false}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:TT},scales:SCALES}
     });
 
