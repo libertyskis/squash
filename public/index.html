@@ -204,7 +204,7 @@ Provide a concise prediction with:
 Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
 
   try {
-    out.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>';
+    out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
 
     const response = await fetch('/api/predict', {
       method: 'POST',
