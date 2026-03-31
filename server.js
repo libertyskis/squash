@@ -7,6 +7,7 @@ app.use(express.json());
 
 app.post('/api/predict', async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  console.log('API key present:', !!apiKey, '| Length:', apiKey ? apiKey.length : 0);
   if (!apiKey) {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set on server' });
   }
@@ -31,4 +32,5 @@ app.post('/api/predict', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Squash tracker running on port ${PORT}`);
+  console.log('ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY);
 });
