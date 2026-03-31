@@ -239,10 +239,10 @@ Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
       ? '-' + Math.round((kfImpl / (1 - kfImpl)) * 100)
       : '+' + Math.round(((1 - kfImpl) / kfImpl) * 100);
 
-    // Over/under: average total games from last 20 matches
+    // Over/under: total games played = bestJF + bestKF (e.g. 3-1 = 4, 3-2 = 5)
     const gameTotals = last20
-      .filter(m => m.gamesJF !== null && m.gamesKF !== null)
-      .map(m => m.gamesJF + m.gamesKF);
+      .filter(m => m.bestJF !== null && m.bestKF !== null)
+      .map(m => m.bestJF + m.bestKF);
     const avgGames = gameTotals.length
       ? (gameTotals.reduce((a,b) => a+b, 0) / gameTotals.length)
       : 8;
@@ -486,7 +486,7 @@ async function loadData() {
     // TABLE
     document.getElementById('matches-tbody').innerHTML=[...matches].reverse().slice(0,15).map(m=>{
       const score=m.bestJF!==null&&m.bestKF!==null?`${m.bestJF}–${m.bestKF}`:'—';
-      const games=m.gamesJF!==null&&m.gamesKF!==null?`${m.gamesJF}–${m.gamesKF}`:'';
+      const games=m.gamesJF!==null?`${m.gamesJF}`:'';
       const bc=m.winner==='JF'?'bjf':m.winner==='KF'?'bkf':'bdraw';
       const notes=m.notes.substring(0,55)+(m.notes.length>55?'…':'');
       return `<tr>
