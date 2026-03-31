@@ -181,8 +181,7 @@ async function generatePrediction() {
     const winner = m.winner || 'no result';
     const notes = m.notes ? ` (${m.notes})` : '';
     return `${i+1}. ${m.date}: JF ${m.bestJF} - KF ${m.bestKF}, winner: ${winner}${notes}`;
-  }).join('
-');
+  }).join('\n');
 
   const jfWins = last20.filter(m=>m.winner==='JF').length;
   const kfWins = last20.filter(m=>m.winner==='KF').length;
