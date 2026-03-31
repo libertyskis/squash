@@ -317,10 +317,10 @@ Keep it punchy and direct — like a pre-game briefing. Be precise with numbers 
     const pUnder = 1 - pOver;
     const iOver = pOver * 1.10;
     const iUnder = pUnder * 1.10;
-    const ouOverOdds = iOver >= 0.5
+    const ouOverOddsDisp = iOver >= 0.5
       ? '-' + Math.round((iOver / (1 - iOver)) * 100)
       : '+' + Math.round(((1 - iOver) / iOver) * 100);
-    const ouUnderOdds = iUnder >= 0.5
+    const ouUnderOddsDisp = iUnder >= 0.5
       ? '-' + Math.round((iUnder / (1 - iUnder)) * 100)
       : '+' + Math.round(((1 - iUnder) / iUnder) * 100);
 
@@ -352,7 +352,7 @@ Keep it punchy and direct — like a pre-game briefing. Be precise with numbers 
           <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Total games O/U</div>
             <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--text)">${ouLine}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:4px">Over ${ouOverOdds} / Under ${ouUnderOdds}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">Over ${ouOverOddsDisp} / Under ${ouUnderOddsDisp}</div>
           </div>
           <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">KF moneyline</div>
