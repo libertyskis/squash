@@ -189,7 +189,7 @@ async function generatePrediction() {
   // Calculate O/U before building prompt so AI references the correct line
   const gameTotals2 = last20.filter(m => m.bestJF !== null && m.bestKF !== null).map(m => m.bestJF + m.bestKF);
   const avgGames2 = gameTotals2.length ? (gameTotals2.reduce((a,b) => a+b, 0) / gameTotals2.length) : 4;
-  const ouLine2 = (Math.round(avgGames2 * 2) / 2).toFixed(1);
+  const ouLine2 = (Math.floor(avgGames2) + 0.5).toFixed(1);
 
   const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
 
@@ -200,15 +200,14 @@ SUMMARY: JF has won ${jfWins} of the last ${last20.length} matches, KF has won $
 
 BETTING LINES (use these exact numbers in your analysis):
 - Moneyline: calculated from your confidence percentage with 10% vig
-- Total games O/U line: ${ouLine2} (-110 each side). Games played in a match can only be 3, 4, or 5.
+- Total games O/U line: ${ouLine2} (Over ${ouOverOdds} / Under ${ouUnderOdds}). Games played in a match can only be 3, 4, or 5.
 
 Provide a concise prediction with:
 1. Current form analysis (last 5-6 matches)
 2. Key patterns or trends
 3. Physical/contextual factors from the notes
 4. Your prediction with a confidence percentage (e.g. 60% JF / 40% KF)
-5. Your recommended bet referencing the O/U line of ${ouLine2}
-6. A final section titled exactly "INGA'S BEST BET:" followed by one single clear bet recommendation in bold — e.g. "**OVER 4.0 (-110)**" or "**KF moneyline (+102)**". This must always appear at the very end.
+5. End with a section titled exactly "INGA'S BEST BET:" followed by one single clear bet recommendation in bold — e.g. "**OVER 4.0 (-110)**" or "**KF moneyline (+102)**". No other bet recommendation should appear anywhere else in the analysis.
 
 Keep it punchy and direct — like a pre-game briefing. Max 250 words.`;
 
@@ -257,7 +256,24 @@ Keep it punchy and direct — like a pre-game briefing. Max 250 words.`;
       ? (gameTotals.reduce((a,b) => a+b, 0) / gameTotals.length)
       : 8;
     // Round to nearest 0.5 for a clean O/U line
-    const ouLine = (Math.round(avgGames * 2) / 2).toFixed(1);
+    const ouLine = (Math.floor(avgGames) + 0.5).toFixed(1);
+    // Calculate true probability of OVER based on distance from average
+    // line is always below avg (floor+0.5), so OVER is favorite
+    const ouLineNum = parseFloat(ouLine);
+    // Use historical data: pOver = fraction of matches where total > line
+    const pOver = gameTotals.length
+      ? gameTotals.filter(g => g > ouLineNum).length / gameTotals.length
+      : 0.55;
+    const pUnder = 1 - pOver;
+    // Apply 10% vig
+    const pOverVig = pOver * 1.10;
+    const pUnderVig = pUnder * 1.10;
+    const ouOverOdds = pOverVig >= 0.5
+      ? '-' + Math.round((pOverVig / (1 - pOverVig)) * 100)
+      : '+' + Math.round(((1 - pOverVig) / pOverVig) * 100);
+    const ouUnderOdds = pUnderVig >= 0.5
+      ? '-' + Math.round((pUnderVig / (1 - pUnderVig)) * 100)
+      : '+' + Math.round(((1 - pUnderVig) / pUnderVig) * 100);
 
     const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
 
@@ -287,7 +303,7 @@ Keep it punchy and direct — like a pre-game briefing. Max 250 words.`;
           <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Total games O/U</div>
             <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--text)">${ouLine}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:4px">-110 each side</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">Over ${ouOverOdds} / Under ${ouUnderOdds}</div>
           </div>
           <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">KF moneyline</div>
