@@ -252,17 +252,25 @@ Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max
   try {
     out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
 
-    const response = await fetch('/api/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await response.json();
+    // Retry up to 3 times on overload
+    let data, response;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>${attempt > 1 ? `Retry ${attempt-1}...` : `Analyzing ${last20.length} matches...`}</div>`;
+      response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      data = await response.json();
+      if (data.error?.type === 'overloaded_error' || (typeof data.error === 'string' && data.error.toLowerCase().includes('overload'))) {
+        if (attempt < 3) { await new Promise(r => setTimeout(r, 2000 * attempt)); continue; }
+      }
+      break;
+    }
     if (!response.ok || data.error) {
       throw new Error(data.error?.message || data.error || `HTTP ${response.status}`);
     }
