@@ -186,6 +186,11 @@ async function generatePrediction() {
   const jfWins = last20.filter(m=>m.winner==='JF').length;
   const kfWins = last20.filter(m=>m.winner==='KF').length;
 
+  // Calculate O/U before building prompt so AI references the correct line
+  const gameTotals2 = last20.filter(m => m.bestJF !== null && m.bestKF !== null).map(m => m.bestJF + m.bestKF);
+  const avgGames2 = gameTotals2.length ? (gameTotals2.reduce((a,b) => a+b, 0) / gameTotals2.length) : 4;
+  const ouLine2 = (Math.round(avgGames2 * 2) / 2).toFixed(1);
+
   const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
 
 MATCH HISTORY (oldest to most recent):
@@ -193,14 +198,19 @@ ${matchSummary}
 
 SUMMARY: JF has won ${jfWins} of the last ${last20.length} matches, KF has won ${kfWins}.
 
+BETTING LINES (use these exact numbers in your analysis):
+- Moneyline: calculated from your confidence percentage with 10% vig
+- Total games O/U line: ${ouLine2} (-110 each side). Games played in a match can only be 3, 4, or 5.
+
 Provide a concise prediction with:
 1. Current form analysis (last 5-6 matches)
 2. Key patterns or trends
 3. Physical/contextual factors from the notes
 4. Your prediction with a confidence percentage (e.g. 60% JF / 40% KF)
-5. One key swing factor to watch
+5. Your recommended bet referencing the O/U line of ${ouLine2}
+6. A final section titled exactly "INGA'S BEST BET:" followed by one single clear bet recommendation in bold — e.g. "**OVER 4.0 (-110)**" or "**KF moneyline (+102)**". This must always appear at the very end.
 
-Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
+Keep it punchy and direct — like a pre-game briefing. Max 250 words.`;
 
   try {
     out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
