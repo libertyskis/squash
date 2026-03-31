@@ -116,17 +116,6 @@
         <div class="chart-wrap" style="height:180px"><canvas id="chartMonthly"></canvas></div>
       </div>
     </div>
-    <div class="chart-card" style="margin-bottom:16px" id="prediction-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <h2>Daily prediction</h2>
-        <button id="predict-btn" onclick="generatePrediction()" style="padding:6px 14px;background:transparent;border:1px solid rgba(232,89,60,0.4);border-radius:6px;color:#E8593C;font-family:var(--mono);font-size:11px;letter-spacing:0.06em;cursor:pointer;transition:all 0.15s">⚡ Generate</button>
-      </div>
-      <p class="chart-sub">AI analysis of last 20 head-to-head matches</p>
-      <div id="prediction-output" style="min-height:80px;display:flex;align-items:center;justify-content:center">
-        <div style="font-size:12px;color:var(--muted);text-align:center">Click Generate before you play for today's prediction</div>
-      </div>
-    </div>
-
     <div class="table-section">
       <div class="table-header">
         <h2>Recent JF vs KF matches</h2>
@@ -161,99 +150,6 @@ function parseCSV(text) {
 }
 
 const toNum = v => { const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? null : n; };
-
-async function generatePrediction() {
-  const btn = document.getElementById('predict-btn');
-  const out = document.getElementById('prediction-output');
-  btn.disabled = true;
-  btn.textContent = '...thinking';
-
-  // Pull last 20 head-to-head matches from already-parsed matches array
-  const h2h = window._matches || [];
-  if (h2h.length === 0) {
-    out.innerHTML = '<div style="font-size:12px;color:var(--muted)">No match data loaded yet — refresh the page first.</div>';
-    btn.disabled = false; btn.textContent = '⚡ Generate';
-    return;
-  }
-  const last20 = h2h.slice(-20);
-  const matchSummary = last20.map((m, i) => {
-    const score = `${m.bestJF}-${m.bestKF}`;
-    const winner = m.winner || 'no result';
-    const notes = m.notes ? ` (${m.notes})` : '';
-    return `${i+1}. ${m.date}: JF ${m.bestJF} - KF ${m.bestKF}, winner: ${winner}${notes}`;
-  }).join('
-');
-
-  const jfWins = last20.filter(m=>m.winner==='JF').length;
-  const kfWins = last20.filter(m=>m.winner==='KF').length;
-
-  const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
-
-MATCH HISTORY (oldest to most recent):
-${matchSummary}
-
-SUMMARY: JF has won ${jfWins} of the last ${last20.length} matches, KF has won ${kfWins}.
-
-Provide a concise prediction with:
-1. Current form analysis (last 5-6 matches)
-2. Key patterns or trends
-3. Physical/contextual factors from the notes
-4. Your prediction with a confidence percentage (e.g. 60% JF / 40% KF)
-5. One key swing factor to watch
-
-Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
-
-  try {
-    out.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>';
-
-    const response = await fetch('/api/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await response.json();
-    const text = data.content.map(b => b.text || '').join('');
-
-    // Parse confidence line for visual meter
-    const confMatch = text.match(/(\d+)%\s*JF\s*\/\s*(\d+)%\s*KF/i) || text.match(/JF[:\s]+(\d+)%/i);
-    const jfConf = confMatch ? parseInt(confMatch[1]) : 55;
-    const kfConf = 100 - jfConf;
-
-    const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
-
-    out.innerHTML = `
-      <div style="width:100%">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">${today}</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-          <div style="font-size:10px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em;width:20px">JF</div>
-          <div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
-            <div style="width:${jfConf}%;background:var(--jf);border-radius:4px 0 0 4px"></div>
-            <div style="width:${kfConf}%;background:var(--kf);border-radius:0 4px 4px 0"></div>
-          </div>
-          <div style="font-size:10px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em;width:20px;text-align:right">KF</div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px;font-family:var(--display);font-weight:800">
-          <span style="color:var(--jf)">${jfConf}%</span>
-          <span style="color:var(--kf)">${kfConf}%</span>
-        </div>
-        <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text}</div>
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} head-to-head matches</span>
-          <button onclick="generatePrediction()" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>
-        </div>
-      </div>
-    `;
-  } catch(err) {
-    out.innerHTML = `<div style="font-size:12px;color:#E8593C">Error: ${err.message}</div>`;
-  }
-  btn.disabled = false;
-  btn.textContent = '⚡ Generate';
-}
 
 async function loadData() {
   try {
@@ -454,7 +350,6 @@ async function loadData() {
       </tr>`;
     }).join('');
 
-    window._matches = matches;
     document.getElementById('updated-time').textContent='Updated '+new Date().toLocaleTimeString();
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
