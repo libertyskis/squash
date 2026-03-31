@@ -245,19 +245,27 @@ Keep it punchy and direct — like a pre-game briefing. Be precise with numbers 
     const text = data.content.map(b => b.text || '').join('');
 
     // Parse confidence line for visual meter
+    // Parse confidence from Inga's text
     const confMatch = text.match(/(\d+)%\s*JF\s*\/\s*(\d+)%\s*KF/i) || text.match(/JF[:\s]+(\d+)%/i);
     const jfConf = confMatch ? parseInt(confMatch[1]) : 55;
     const kfConf = 100 - jfConf;
 
-    // Convert to American odds with 10% vig
-    const jfImpl = (jfConf / 100) * 1.10;
-    const kfImpl = (kfConf / 100) * 1.10;
-    const jfOdds = jfImpl >= 0.5
-      ? '-' + Math.round((jfImpl / (1 - jfImpl)) * 100)
-      : '+' + Math.round(((1 - jfImpl) / jfImpl) * 100);
-    const kfOdds = kfImpl >= 0.5
-      ? '-' + Math.round((kfImpl / (1 - kfImpl)) * 100)
-      : '+' + Math.round(((1 - kfImpl) / kfImpl) * 100);
+    // Try to parse Inga's own moneyline from text first — e.g. "JF -138 / KF +152"
+    const mlMatch = text.match(/JF\s*(-\d+)\s*\/\s*KF\s*(\+\d+)/i) || text.match(/JF\s*(\+\d+)\s*\/\s*KF\s*(-\d+)/i);
+    let jfOdds, kfOdds;
+    if (mlMatch) {
+      jfOdds = mlMatch[1]; kfOdds = mlMatch[2];
+    } else {
+      // Fall back to calculating from confidence
+      const jfImpl = (jfConf / 100) * 1.10;
+      const kfImpl = (kfConf / 100) * 1.10;
+      jfOdds = jfImpl >= 0.5
+        ? '-' + Math.round((jfImpl / (1 - jfImpl)) * 100)
+        : '+' + Math.round(((1 - jfImpl) / jfImpl) * 100);
+      kfOdds = kfImpl >= 0.5
+        ? '-' + Math.round((kfImpl / (1 - kfImpl)) * 100)
+        : '+' + Math.round(((1 - kfImpl) / kfImpl) * 100);
+    }
 
     // Over/under: total games played = bestJF + bestKF (e.g. 3-1 = 4, 3-2 = 5)
     const gameTotals = last20
