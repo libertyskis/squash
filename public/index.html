@@ -227,7 +227,7 @@ NOTE: These are ALL head-to-head matches only. Do not infer or add matches not l
 
 BETTING LINES (use these exact numbers in your analysis):
 - Moneyline: calculated from your confidence percentage with 10% vig
-- Total games O/U line: ${ouLine2} (Over ${ouOverOdds} / Under ${ouUnderOdds}). Games played in a match can only be 3, 4, or 5.
+- Total games O/U line: ${ouLine2}. OVER ${ouLine2} pays ${ouOverOdds}. UNDER ${ouLine2} pays ${ouUnderOdds}. Games played in a match can only be 3, 4, or 5. If 80%+ of matches go over the line, the OVER odds will be negative (favorite). Do not mix up the over and under odds.
 
 Provide a concise prediction with:
 1. Current form analysis (last 5-6 matches)
@@ -236,7 +236,7 @@ Provide a concise prediction with:
 4. Your prediction with a confidence percentage (e.g. 60% JF / 40% KF)
 5. End with a section titled exactly "INGA'S BEST BET:" followed by one single clear bet recommendation in bold — e.g. "**OVER 4.0 (-110)**" or "**KF moneyline (+102)**". No other bet recommendation should appear anywhere else in the analysis.
 
-Keep it punchy and direct — like a pre-game briefing. Be precise with numbers — do not describe a 55-45 split as 'even' or 'close'. When citing statistics, always reference the sample size (e.g. 'of the past 20 matches' or 'in the last 6'). Max 250 words.`;
+Keep it punchy and direct — like a pre-game briefing. Be precise with numbers — do not describe a 55-45 split as 'even' or 'close'. When citing statistics, always reference the sample size (e.g. 'of the past 20 matches' or 'in the last 6'). IMPORTANT: negative odds (e.g. -176) mean that side is the FAVORITE and cheaper to bet. Positive odds (e.g. +264) mean that side is the UNDERDOG and pays more. If 80% of matches go OVER, the OVER is the favorite and will have negative odds. Do not recommend the OVER as 'value' if it has positive odds — that would be a contradiction. Max 250 words.`;
 
   try {
     out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
