@@ -121,7 +121,7 @@
         <h2>Daily prediction</h2>
         <button id="predict-btn" onclick="generatePrediction()" style="padding:6px 14px;background:transparent;border:1px solid rgba(232,89,60,0.4);border-radius:6px;color:#E8593C;font-family:var(--mono);font-size:11px;letter-spacing:0.06em;cursor:pointer;transition:all 0.15s">⚡ Generate</button>
       </div>
-      <p class="chart-sub">AI analysis of last 20 head-to-head matches</p>
+      <p class="chart-sub">Inga's analysis of last 20 head-to-head matches</p>
       <div id="prediction-output" style="min-height:80px;display:flex;align-items:center;justify-content:center">
         <div style="font-size:12px;color:var(--muted);text-align:center">Click Generate before you play for today's prediction</div>
       </div>
@@ -216,6 +216,12 @@ Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
     });
 
     const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || data.error || `HTTP ${response.status}`);
+    }
+    if (!data.content || !Array.isArray(data.content)) {
+      throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
+    }
     const text = data.content.map(b => b.text || '').join('');
 
     // Parse confidence line for visual meter
