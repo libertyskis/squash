@@ -177,11 +177,16 @@ async function generatePrediction() {
   }
   const last20 = h2h.slice(-20);
   const matchSummary = last20.map((m, i) => {
-    const score = `${m.bestJF}-${m.bestKF}`;
     const winner = m.winner || 'no result';
     const notes = m.notes ? ` (${m.notes})` : '';
     return `${i+1}. ${m.date}: JF ${m.bestJF} - KF ${m.bestKF}, winner: ${winner}${notes}`;
   }).join('\n');
+
+  // Pre-calculate recent form so Inga has accurate counts
+  const last6 = last20.slice(-6);
+  const last6JF = last6.filter(m=>m.winner==='JF').length;
+  const last6KF = last6.filter(m=>m.winner==='KF').length;
+  const lastWinner = last20[last20.length-1]?.winner || 'unknown';
 
   const jfWins = last20.filter(m=>m.winner==='JF').length;
   const kfWins = last20.filter(m=>m.winner==='KF').length;
@@ -193,21 +198,32 @@ async function generatePrediction() {
   const ouLineNum2 = parseFloat(ouLine2);
   const pOver2 = gameTotals2.length ? gameTotals2.filter(g => g > ouLineNum2).length / gameTotals2.length : 0.55;
   const pUnder2 = 1 - pOver2;
-  const pOverVig2 = pOver2 * 1.10;
-  const pUnderVig2 = pUnder2 * 1.10;
-  const ouOverOdds = pOverVig2 >= 0.5
-    ? '-' + Math.round((pOverVig2 / (1 - pOverVig2)) * 100)
-    : '+' + Math.round(((1 - pOverVig2) / pOverVig2) * 100);
-  const ouUnderOdds = pUnderVig2 >= 0.5
-    ? '-' + Math.round((pUnderVig2 / (1 - pUnderVig2)) * 100)
-    : '+' + Math.round(((1 - pUnderVig2) / pUnderVig2) * 100);
+  // Apply vig by scaling so total implied probability = 110%
+  // Each side's implied prob = true prob * 1.10, then convert to American odds
+  const vigTotal2 = 1.10;
+  const iOver2 = pOver2 * vigTotal2;
+  const iUnder2 = pUnder2 * vigTotal2;
+  const ouOverOdds = iOver2 >= 0.5
+    ? '-' + Math.round((iOver2 / (1 - iOver2)) * 100)
+    : '+' + Math.round(((1 - iOver2) / iOver2) * 100);
+  const ouUnderOdds = iUnder2 >= 0.5
+    ? '-' + Math.round((iUnder2 / (1 - iUnder2)) * 100)
+    : '+' + Math.round(((1 - iUnder2) / iUnder2) * 100);
+
+  const last6Summary = last6.map((m,i) => `${i+1}. ${m.date}: ${m.bestJF}-${m.bestKF}, winner: ${m.winner||'none'}`).join('\n');
 
   const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
 
 MATCH HISTORY (oldest to most recent):
 ${matchSummary}
 
-SUMMARY: JF has won ${jfWins} of the last ${last20.length} matches, KF has won ${kfWins}.
+LAST 6 MATCHES (most recent first, use these exact results — do not deviate):
+${last6Summary}
+JF won ${last6JF} of the last 6, KF won ${last6KF}.
+
+OVERALL SUMMARY: JF has won ${jfWins} of the last ${last20.length} matches, KF has won ${kfWins}.
+LAST 6 MATCHES: JF won ${last6JF}, KF won ${last6KF}. Most recent winner: ${lastWinner}.
+NOTE: These are ALL head-to-head matches only. Do not infer or add matches not listed above.
 
 BETTING LINES (use these exact numbers in your analysis):
 - Moneyline: calculated from your confidence percentage with 10% vig
@@ -220,7 +236,7 @@ Provide a concise prediction with:
 4. Your prediction with a confidence percentage (e.g. 60% JF / 40% KF)
 5. End with a section titled exactly "INGA'S BEST BET:" followed by one single clear bet recommendation in bold — e.g. "**OVER 4.0 (-110)**" or "**KF moneyline (+102)**". No other bet recommendation should appear anywhere else in the analysis.
 
-Keep it punchy and direct — like a pre-game briefing. Be precise with numbers — do not describe a 55-45 split as 'even' or 'close'. Max 250 words.`;
+Keep it punchy and direct — like a pre-game briefing. Be precise with numbers — do not describe a 55-45 split as 'even' or 'close'. When citing statistics, always reference the sample size (e.g. 'of the past 20 matches' or 'in the last 6'). Max 250 words.`;
 
   try {
     out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
@@ -294,15 +310,14 @@ Keep it punchy and direct — like a pre-game briefing. Be precise with numbers 
       ? gameTotals.filter(g => g > ouLineNum).length / gameTotals.length
       : 0.55;
     const pUnder = 1 - pOver;
-    // Apply 10% vig
-    const pOverVig = pOver * 1.10;
-    const pUnderVig = pUnder * 1.10;
-    const ouOverOdds = pOverVig >= 0.5
-      ? '-' + Math.round((pOverVig / (1 - pOverVig)) * 100)
-      : '+' + Math.round(((1 - pOverVig) / pOverVig) * 100);
-    const ouUnderOdds = pUnderVig >= 0.5
-      ? '-' + Math.round((pUnderVig / (1 - pUnderVig)) * 100)
-      : '+' + Math.round(((1 - pUnderVig) / pUnderVig) * 100);
+    const iOver = pOver * 1.10;
+    const iUnder = pUnder * 1.10;
+    const ouOverOdds = iOver >= 0.5
+      ? '-' + Math.round((iOver / (1 - iOver)) * 100)
+      : '+' + Math.round(((1 - iOver) / iOver) * 100);
+    const ouUnderOdds = iUnder >= 0.5
+      ? '-' + Math.round((iUnder / (1 - iUnder)) * 100)
+      : '+' + Math.round(((1 - iUnder) / iUnder) * 100);
 
     const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
 
