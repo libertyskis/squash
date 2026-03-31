@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Squash Tracker 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --jf: #E8593C; --kf: #3B8BD4;
+    --bg: #0e0e10; --surface: #17171a; --surface2: #1e1e22;
+    --border: rgba(255,255,255,0.07); --text: #f0ede8;
+    --muted: rgba(240,237,232,0.45);
+    --mono: 'DM Mono', monospace; --display: 'Syne', sans-serif;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh; }
+  #loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; gap:16px; font-size:13px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:var(--jf); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #app { display:none; }
+  header { padding:36px 40px 28px; border-bottom:1px solid var(--border); display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .title-block h1 { font-family:var(--display); font-size:32px; font-weight:800; letter-spacing:-0.02em; line-height:1; }
+  .title-block h1 span.jf { color:var(--jf); } .title-block h1 span.kf { color:var(--kf); }
+  .title-block p { margin-top:6px; font-size:11px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; }
+  .last-updated { font-size:11px; color:var(--muted); text-align:right; }
+  .refresh-btn { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:6px 12px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-family:var(--mono); font-size:11px; cursor:pointer; transition:all 0.15s; }
+  .refresh-btn:hover { border-color:rgba(255,255,255,0.2); color:var(--text); }
+  .main { padding:32px 40px; max-width:1400px; }
+  .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:32px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
+  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent,var(--border)); }
+  .stat-card.jf{--accent:var(--jf);} .stat-card.kf{--accent:var(--kf);} .stat-card.n{--accent:rgba(255,255,255,0.15);}
+  .stat-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; }
+  .stat-value { font-family:var(--display); font-size:28px; font-weight:800; letter-spacing:-0.02em; line-height:1; }
+  .stat-sub { font-size:10px; color:var(--muted); margin-top:6px; }
+  .charts-grid { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+  .charts-grid-bottom { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
+  .chart-card h2 { font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .chart-sub { font-size:11px; color:rgba(240,237,232,0.25); margin-bottom:18px; }
+  .chart-wrap { position:relative; width:100%; }
+  .h2h-wrap { display:flex; flex-direction:column; align-items:center; gap:16px; padding:12px 0; }
+  .h2h-ring-wrap { position:relative; width:160px; height:160px; }
+  .h2h-ring-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+  .h2h-detail { display:flex; gap:24px; justify-content:center; }
+  .h2h-player { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .h2h-player-name { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); }
+  .h2h-player-score { font-family:var(--display); font-size:24px; font-weight:800; }
+  .pace-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .pace-name { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; width:24px; }
+  .pace-bar-bg { flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+  .pace-bar-fill { height:100%; border-radius:3px; }
+  .pace-val { font-size:11px; color:var(--text); width:48px; text-align:right; }
+  .target-section { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px; }
+  .target-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
+  .target-card h2 { font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); margin-bottom:18px; }
+  .tbar-bg { height:10px; background:rgba(255,255,255,0.06); border-radius:5px; overflow:hidden; }
+  .tbar-fill { height:100%; border-radius:5px; }
+  .table-section { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:32px; }
+  .table-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .table-header h2 { font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead th { padding:10px 24px; text-align:left; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; font-weight:500; background:var(--surface2); }
+  tbody tr { border-top:1px solid var(--border); } tbody tr:hover { background:rgba(255,255,255,0.03); }
+  tbody td { padding:10px 24px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; letter-spacing:0.06em; font-weight:500; text-transform:uppercase; }
+  .bjf{background:rgba(232,89,60,0.15);color:var(--jf);} .bkf{background:rgba(59,139,212,0.15);color:var(--kf);} .bdraw{background:rgba(255,255,255,0.06);color:var(--muted);}
+  .err { padding:28px 32px; background:rgba(232,89,60,0.08); border:1px solid rgba(232,89,60,0.2); border-radius:12px; color:#E8593C; line-height:2; font-size:13px; max-width:520px; }
+  .err a { color:var(--jf); }
+  @media(max-width:900px){ header{padding:24px 20px 20px;} .main{padding:20px;} .charts-grid,.charts-grid-bottom,.target-section{grid-template-columns:1fr;} }
+  @media(max-width:600px){ .stats-row{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><span id="loading-msg">Loading live data...</span></div>
+<div id="app">
+  <header>
+    <div class="title-block">
+      <h1><svg viewBox="0 0 24 24" width="28" height="28" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:3px"><circle cx="12" cy="12" r="11" fill="#111"/><circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><circle cx="9" cy="11" r="1.2" fill="rgba(255,255,255,0.75)"/><circle cx="15" cy="13" r="1.2" fill="rgba(255,255,255,0.75)"/></svg><span class="jf">JF</span> vs <span class="kf">KF</span> — Squash 2026</h1>
+      <p>Live from Google Sheets · Auto-refreshes every 5 min</p>
+    </div>
+    <div class="last-updated">
+      <div id="updated-time">—</div>
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </header>
+  <div class="main">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h2>Points race</h2><p class="chart-sub">Cumulative best-of match points (col M)</p>
+        <div class="chart-wrap" style="height:280px"><canvas id="chartLine"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Last 5 matches</h2><p class="chart-sub">Most recent on the right</p>
+        <div class="h2h-wrap" id="h2h-wrap"></div>
+      </div>
+    </div>
+    <div class="charts-grid-bottom">
+      <div class="chart-card">
+        <h2>Shutouts</h2><p class="chart-sub">3–0 match shutouts per player</p>
+        <div class="chart-wrap" style="height:200px"><canvas id="chartWins"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Activity pace</h2><p class="chart-sub">Games per play day</p>
+        <div id="pace-wrap" style="padding-top:4px"></div>
+      </div>
+    </div>
+    <div class="target-section">
+      <div class="target-card"><h2>Target progress</h2><div id="target-wrap"></div></div>
+      <div class="chart-card">
+        <h2>Monthly activity</h2><p class="chart-sub">Play days per month</p>
+        <div class="chart-wrap" style="height:180px"><canvas id="chartMonthly"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:16px" id="prediction-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <h2>Daily prediction</h2>
+        <button id="predict-btn" onclick="generatePrediction()" style="padding:6px 14px;background:transparent;border:1px solid rgba(232,89,60,0.4);border-radius:6px;color:#E8593C;font-family:var(--mono);font-size:11px;letter-spacing:0.06em;cursor:pointer;transition:all 0.15s">⚡ Generate</button>
+      </div>
+      <p class="chart-sub">Inga's analysis of last 20 head-to-head matches</p>
+      <div id="prediction-output" style="min-height:80px;display:flex;align-items:center;justify-content:center">
+        <div style="font-size:12px;color:var(--muted);text-align:center">Click Generate before you play for today's prediction</div>
+      </div>
+    </div>
+
+    <div class="table-section">
+      <div class="table-header">
+        <h2>Recent JF vs KF matches</h2>
+        <span style="font-size:11px;color:var(--muted)">Best-of-5 only</span>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Result</th><th>Games</th><th>Winner</th><th>Notes</th></tr></thead>
+        <tbody id="matches-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRIOe0CpFTTxwnZrxIU5p6fCNu9xon-98q1nDM0FimHnQa3l4DXofE3DCW2RMto7bOLOW69ZowIBXFl/pub?output=csv';
+const TARGETS = { JF: 1000, KF: 1000 };
+let lineChart, winsChart, monthlyChart, h2hChart;
+
+function parseCSV(text) {
+  const rows = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    const cols = []; let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim()); rows.push(cols);
+  }
+  return rows;
+}
+
+const toNum = v => { const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? null : n; };
+
+async function generatePrediction() {
+  const btn = document.getElementById('predict-btn');
+  const out = document.getElementById('prediction-output');
+  btn.disabled = true;
+  btn.textContent = '...thinking';
+
+  // Pull last 20 head-to-head matches from already-parsed matches array
+  const h2h = window._matches || [];
+  if (h2h.length === 0) {
+    out.innerHTML = '<div style="font-size:12px;color:var(--muted)">No match data loaded yet — refresh the page first.</div>';
+    btn.disabled = false; btn.textContent = '⚡ Generate';
+    return;
+  }
+  const last20 = h2h.slice(-20);
+  const matchSummary = last20.map((m, i) => {
+    const winner = m.winner || 'no result';
+    const notes = m.notes ? ` (${m.notes})` : '';
+    return `${i+1}. ${m.date}: JF ${m.bestJF} - KF ${m.bestKF}, winner: ${winner}${notes}`;
+  }).join('\n');
+
+  // Pre-calculate recent form so Inga has accurate counts
+  const last6 = last20.slice(-6);
+  const last6JF = last6.filter(m=>m.winner==='JF').length;
+  const last6KF = last6.filter(m=>m.winner==='KF').length;
+  const lastWinner = last20[last20.length-1]?.winner || 'unknown';
+
+  const jfWins = last20.filter(m=>m.winner==='JF').length;
+  const kfWins = last20.filter(m=>m.winner==='KF').length;
+
+  // Calculate O/U before building prompt so AI references the correct line
+  const gameTotals2 = last20.filter(m => m.bestJF !== null && m.bestKF !== null).map(m => m.bestJF + m.bestKF);
+  const avgGames2 = gameTotals2.length ? (gameTotals2.reduce((a,b) => a+b, 0) / gameTotals2.length) : 4;
+  const ouLine2 = (Math.floor(avgGames2) + 0.5).toFixed(1);
+  const ouLineNum2 = parseFloat(ouLine2);
+  const pOver2 = gameTotals2.length ? gameTotals2.filter(g => g > ouLineNum2).length / gameTotals2.length : 0.55;
+  const pUnder2 = 1 - pOver2;
+  // Apply vig by scaling so total implied probability = 110%
+  // Each side's implied prob = true prob * 1.10, then convert to American odds
+  const vigTotal2 = 1.10;
+  const iOver2 = pOver2 * vigTotal2;
+  const iUnder2 = pUnder2 * vigTotal2;
+  const ouOverOdds = iOver2 >= 0.5
+    ? '-' + Math.round((iOver2 / (1 - iOver2)) * 100)
+    : '+' + Math.round(((1 - iOver2) / iOver2) * 100);
+  const ouUnderOdds = iUnder2 >= 0.5
+    ? '-' + Math.round((iUnder2 / (1 - iUnder2)) * 100)
+    : '+' + Math.round(((1 - iUnder2) / iUnder2) * 100);
+
+  const last6Summary = last6.map((m,i) => `${i+1}. ${m.date}: ${m.bestJF}-${m.bestKF}, winner: ${m.winner||'none'}`).join('\n');
+
+  // Calculate moneyline from data — JF win rate over last 20 with 10% vig
+  const jfWinRate = jfWins / last20.length;
+  const kfWinRate = 1 - jfWinRate;
+  const jfVig = jfWinRate * 1.10;
+  const kfVig = kfWinRate * 1.10;
+  const jfML = jfVig >= 0.5
+    ? '-' + Math.round((jfVig / (1 - jfVig)) * 100)
+    : '+' + Math.round(((1 - jfVig) / jfVig) * 100);
+  const kfML = kfVig >= 0.5
+    ? '-' + Math.round((kfVig / (1 - kfVig)) * 100)
+    : '+' + Math.round(((1 - kfVig) / kfVig) * 100);
+
+  const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
+
+MATCH HISTORY (oldest to most recent):
+${matchSummary}
+
+LAST 6 MATCHES (use these exact results — do not deviate):
+${last6Summary}
+JF won ${last6JF} of the last 6, KF won ${last6KF}.
+
+OVERALL: JF has won ${jfWins} of the last ${last20.length} matches (${Math.round(jfWinRate*100)}%), KF has won ${kfWins} (${Math.round(kfWinRate*100)}%).
+
+BETTING LINES (already calculated — do NOT recalculate or change these numbers):
+- JF moneyline: ${jfML} | KF moneyline: ${kfML}
+- Total games O/U: ${ouLine2} | OVER pays ${ouOverOdds} | UNDER pays ${ouUnderOdds}
+- Games in a match can only be 3, 4, or 5 (best of 5 format)
+
+Provide a concise analysis:
+1. Current form (last 6 matches)
+2. Key patterns and trends
+3. Physical/contextual factors from the notes
+4. Brief prediction narrative
+5. End with exactly "INGA'S BEST BET:" on its own line, followed by one bold recommendation using ONLY the odds provided above — e.g. "**OVER ${ouLine2} (${ouOverOdds})**" or "**JF moneyline (${jfML})**"
+
+Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max 250 words.`;
+
+  try {
+    out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
+
+    // Retry up to 3 times on overload
+    let data, response;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>${attempt > 1 ? `Retry ${attempt-1}...` : `Analyzing ${last20.length} matches...`}</div>`;
+      response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      data = await response.json();
+      if (data.error?.type === 'overloaded_error' || (typeof data.error === 'string' && data.error.toLowerCase().includes('overload'))) {
+        if (attempt < 3) { await new Promise(r => setTimeout(r, 2000 * attempt)); continue; }
+      }
+      break;
+    }
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || data.error || `HTTP ${response.status}`);
+    }
+    if (!data.content || !Array.isArray(data.content)) {
+      throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
+    }
+    let text = data.content.map(b => b.text || '').join('');
+    // Rewrite INGA'S BEST BET line completely using indexOf — regex was unreliable
+    const betMarker = "INGA'S BEST BET:";
+    const betIdx = text.toUpperCase().indexOf(betMarker.toUpperCase());
+    if (betIdx !== -1) {
+      const beforeBet = text.substring(0, betIdx);
+      const afterBet = text.substring(betIdx + betMarker.length);
+      let betLine;
+      if (/under/i.test(afterBet)) {
+        betLine = `**UNDER ${ouLine2} (${ouUnderOdds})**`;
+      } else if (/over/i.test(afterBet)) {
+        betLine = `**OVER ${ouLine2} (${ouOverOdds})**`;
+      } else if (/kf/i.test(afterBet)) {
+        betLine = `**KF moneyline (${kfML})**`;
+      } else {
+        betLine = `**JF moneyline (${jfML})**`;
+      }
+      text = beforeBet + "INGA'S BEST BET: " + betLine;
+    }
+
+    // Parse confidence line for visual meter
+    // Use data-calculated odds — don't trust Inga's numbers
+    const jfConf = Math.round(jfWinRate * 100);
+    const kfConf = 100 - jfConf;
+    const jfOdds = jfML;
+    const kfOdds = kfML;
+
+    // Over/under: total games played = bestJF + bestKF (e.g. 3-1 = 4, 3-2 = 5)
+    const gameTotals = last20
+      .filter(m => m.bestJF !== null && m.bestKF !== null)
+      .map(m => m.bestJF + m.bestKF);
+    const avgGames = gameTotals.length
+      ? (gameTotals.reduce((a,b) => a+b, 0) / gameTotals.length)
+      : 8;
+    // Round to nearest 0.5 for a clean O/U line
+    const ouLine = (Math.floor(avgGames) + 0.5).toFixed(1);
+    // Calculate true probability of OVER based on distance from average
+    // line is always below avg (floor+0.5), so OVER is favorite
+    const ouLineNum = parseFloat(ouLine);
+    // Use historical data: pOver = fraction of matches where total > line
+    const pOver = gameTotals.length
+      ? gameTotals.filter(g => g > ouLineNum).length / gameTotals.length
+      : 0.55;
+    const pUnder = 1 - pOver;
+    const iOver = pOver * 1.10;
+    const iUnder = pUnder * 1.10;
+    const ouOverOddsDisp = iOver >= 0.5
+      ? '-' + Math.round((iOver / (1 - iOver)) * 100)
+      : '+' + Math.round(((1 - iOver) / iOver) * 100);
+    const ouUnderOddsDisp = iUnder >= 0.5
+      ? '-' + Math.round((iUnder / (1 - iUnder)) * 100)
+      : '+' + Math.round(((1 - iUnder) / iUnder) * 100);
+
+    const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+
+    out.innerHTML = `
+      <div style="width:100%">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">${today}</div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <div style="font-size:10px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em;width:20px">JF</div>
+          <div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
+            <div style="width:${jfConf}%;background:var(--jf);border-radius:4px 0 0 4px"></div>
+            <div style="width:${kfConf}%;background:var(--kf);border-radius:0 4px 4px 0"></div>
+          </div>
+          <div style="font-size:10px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em;width:20px;text-align:right">KF</div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px;font-family:var(--display);font-weight:800">
+          <span style="color:var(--jf)">${jfConf}%</span>
+          <span style="color:var(--kf)">${kfConf}%</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">JF moneyline</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--jf)">${jfOdds}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Total games O/U</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--text)">${ouLine}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">Over ${ouOverOddsDisp} / Under ${ouUnderOddsDisp}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">KF moneyline</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--kf)">${kfOdds}</div>
+          </div>
+        </div>
+
+        <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text}</div>
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} H2H · 10% vig · O/U from avg ${avgGames.toFixed(1)} games</span>
+          <button onclick="generatePrediction()" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>
+        </div>
+      </div>
+    `;
+  } catch(err) {
+    out.innerHTML = `<div style="font-size:12px;color:#E8593C">Error: ${err.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '⚡ Generate';
+}
+
+async function loadData() {
+  try {
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const rows = parseCSV(await resp.text());
+
+    const chartDates=[], jfPts=[], kfPts=[], matches=[];
+    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0, jfTracking=0, kfTracking=0;
+    const monthlyMap={};
+    const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    for (const row of rows) {
+      // "Played" stats row: col A = "Played", col C = JF games, col D = KF games
+      if ((row[0]||'').trim().toLowerCase()==='played') {
+        const jfG=toNum(row[2]), kfG=toNum(row[3]);
+        if (jfG!==null) lastJF=jfG;
+        if (kfG!==null) lastKF=kfG;
+      }
+      if ((row[0]||'').trim().toLowerCase()==='tracking') {
+        const jfT=toNum(row[2]), kfT=toNum(row[3]);
+        if (jfT!==null) jfTracking=jfT;
+        if (kfT!==null) kfTracking=kfT;
+      }
+      // G5/H5: JF vs KF head-to-head points row — col 5 = "JF vs KF", col 6 = P1 score, col 7 = P2 score
+      const rowF=(row[5]||'').trim();
+      if (rowF==='JF vs KF') {
+        const p1=toNum(row[6]), p2=toNum(row[7]);
+        if (p1!==null) jfWins=p1;
+        if (p2!==null) kfWins=p2;
+      }
+      // col 12 = M = Point winner (JF or KF), col 1 = date
+      const rn = toNum(row[0]);
+      if (rn!==null && rn>=1 && rn<=100) {
+        const date=(row[1]||'').trim(), played=(row[2]||'').trim().toUpperCase();
+        const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
+        const gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
+        const notes=(row[22]||'').trim();
+        const shutout=(row[21]||'').trim().toUpperCase();
+        if (shutout==='JF') jfShutouts++;
+        else if (shutout==='KF') kfShutouts++;
+
+        if (played==='Y') {
+          totalPlayDays++;
+          const parts=date.split('-');
+          if (parts.length===2){ const m=parts[1].substring(0,3); monthlyMap[m]=(monthlyMap[m]||0)+1; }
+        }
+        if (bestJF!==null && bestKF!==null && (bestJF+bestKF)>=2) {
+          const winner=bestJF>bestKF?'JF':bestKF>bestJF?'KF':null;
+          matches.push({date,bestJF,bestKF,gamesJF,gamesKF,winner,notes});
+        }
+      }
+    }
+    // Build cumulative points race from col 12 (M = match point winner)
+    let jfCum=0, kfCum=0;
+    for (const row of rows) {
+      const rn=toNum(row[0]);
+      if (rn!==null && rn>=1 && rn<=100) {
+        const date=(row[1]||'').trim();
+        const point=(row[12]||'').trim().toUpperCase();
+        if (point==='JF') jfCum++;
+        else if (point==='KF') kfCum++;
+        if (point==='JF' || point==='KF') {
+          chartDates.push(date);
+          jfPts.push(jfCum);
+          kfPts.push(kfCum);
+        }
+      }
+    }
+
+    const leader=lastJF>lastKF?'JF':lastKF>lastJF?'KF':'TIE';
+    const gap=Math.abs(lastJF-lastKF);
+    const jfPace=totalPlayDays>0?(lastJF/totalPlayDays).toFixed(2):'—';
+    const kfPace=totalPlayDays>0?(lastKF/totalPlayDays).toFixed(2):'—';
+    const maxPace=Math.max(parseFloat(jfPace)||0,parseFloat(kfPace)||0,0.01);
+    const playMonths=MON_ORDER.filter(m=>monthlyMap[m]);
+    const monthlyCounts=playMonths.map(m=>monthlyMap[m]);
+
+    const TT = { backgroundColor:'#17171a', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, titleColor:'rgba(240,237,232,0.5)', bodyColor:'#f0ede8', padding:10, titleFont:{family:"'DM Mono',monospace",size:11}, bodyFont:{family:"'DM Mono',monospace",size:12} };
+    const SCALES = {
+      x:{ grid:{color:'rgba(255,255,255,0.04)',drawTicks:false}, border:{display:false}, ticks:{color:'rgba(240,237,232,0.35)',font:{family:"'DM Mono',monospace",size:10},maxRotation:0,autoSkip:true,maxTicksLimit:10} },
+      y:{ grid:{color:'rgba(255,255,255,0.04)',drawTicks:false}, border:{display:false}, ticks:{color:'rgba(240,237,232,0.3)',font:{family:"'DM Mono',monospace",size:10}}, beginAtZero:true }
+    };
+
+    // STAT CARDS
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card jf"><div class="stat-label">JF Games</div><div class="stat-value">${lastJF}</div><div class="stat-sub">Target: ${TARGETS.JF.toLocaleString()}</div></div>
+      <div class="stat-card kf"><div class="stat-label">KF Games</div><div class="stat-value">${lastKF}</div><div class="stat-sub">Target: ${TARGETS.KF.toLocaleString()}</div></div>
+      <div class="stat-card ${leader==='JF'?'jf':leader==='KF'?'kf':'n'}">
+        <div class="stat-label">Leading</div>
+        <div class="stat-value" style="color:${leader==='JF'?'var(--jf)':leader==='KF'?'var(--kf)':'var(--text)'}">${leader}</div>
+        <div class="stat-sub">by ${gap} games</div>
+      </div>
+      <div class="stat-card n"><div class="stat-label">JF Wins</div><div class="stat-value" style="color:var(--jf)">${jfWins}</div><div class="stat-sub">vs KF best-of</div></div>
+      <div class="stat-card n"><div class="stat-label">KF Wins</div><div class="stat-value" style="color:var(--kf)">${kfWins}</div><div class="stat-sub">vs JF best-of</div></div>
+      <div class="stat-card n"><div class="stat-label">Play Days</div><div class="stat-value" style="color:var(--text)">${totalPlayDays}</div><div class="stat-sub">YTD 2026</div></div>
+    `;
+
+    // LINE CHART
+    if(lineChart) lineChart.destroy();
+    lineChart = new Chart(document.getElementById('chartLine'),{
+      type:'line',
+      data:{labels:chartDates,datasets:[
+        {label:'JF',data:jfPts,borderColor:'#E8593C',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:false},
+        {label:'KF',data:kfPts,borderColor:'#3B8BD4',borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.3,fill:false}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:TT},scales:SCALES}
+    });
+
+    // H2H DONUT
+    const last5 = matches.slice(-5);
+    const dotsHtml = last5.map(m => {
+      const isJF = m.winner === 'JF';
+      const bg = isJF ? '#E8593C' : '#3B8BD4';
+      const initials = m.winner || '?';
+      return `<div style="width:48px;height:48px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;font-weight:800;color:#fff;letter-spacing:0.02em">${initials}</div>`;
+    }).join('');
+    document.getElementById('h2h-wrap').innerHTML=`
+      <div style="display:flex;gap:10px;align-items:center;justify-content:center;padding:16px 0">${dotsHtml}</div>
+      <div style="font-size:10px;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">${matches.length} total matches played</div>
+    `;
+
+    // WINS BAR
+    if(winsChart) winsChart.destroy();
+    winsChart = new Chart(document.getElementById('chartWins'),{
+      type:'bar',
+      data:{labels:['JF shutouts','KF shutouts'],datasets:[{data:[Math.round(jfShutouts),Math.round(kfShutouts)],backgroundColor:['rgba(232,89,60,0.7)','rgba(59,139,212,0.7)'],borderColor:['#E8593C','#3B8BD4'],borderWidth:1,borderRadius:4,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:TT},scales:{...SCALES,y:{...SCALES.y,ticks:{...SCALES.y.ticks,stepSize:1,callback:v=>Number.isInteger(v)?v:null}}}}
+    });
+
+    // PACE
+    document.getElementById('pace-wrap').innerHTML=`
+      <div style="margin-bottom:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Games per play day</div>
+      <div class="pace-row">
+        <div class="pace-name" style="color:var(--jf)">JF</div>
+        <div class="pace-bar-bg"><div class="pace-bar-fill" style="width:${((parseFloat(jfPace)||0)/maxPace*100).toFixed(1)}%;background:var(--jf)"></div></div>
+        <div class="pace-val">${jfPace}</div>
+      </div>
+      <div class="pace-row">
+        <div class="pace-name" style="color:var(--kf)">KF</div>
+        <div class="pace-bar-bg"><div class="pace-bar-fill" style="width:${((parseFloat(kfPace)||0)/maxPace*100).toFixed(1)}%;background:var(--kf)"></div></div>
+        <div class="pace-val">${kfPace}</div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">${totalPlayDays} total play days in 2026</div>
+    `;
+
+    // TARGETS
+    const jfPct=Math.min(100,lastJF/TARGETS.JF*100).toFixed(1);
+    const kfPct=Math.min(100,lastKF/TARGETS.KF*100).toFixed(1);
+    const jfOnTrack = jfTracking >= TARGETS.JF;
+    const kfOnTrack = kfTracking >= TARGETS.KF;
+    const jfTrackColor = jfOnTrack ? '#27A06B' : '#E8593C';
+    const kfTrackColor = kfOnTrack ? '#27A06B' : '#E8593C';
+    const jfTrackMsg = jfOnTrack ? `On track for ${jfTracking.toLocaleString()} ↑` : `Tracking to ${jfTracking.toLocaleString()} — ${(TARGETS.JF-jfTracking).toLocaleString()} short`;
+    const kfTrackMsg = kfOnTrack ? `On track for ${kfTracking.toLocaleString()} ↑` : `Tracking to ${kfTracking.toLocaleString()} — ${(TARGETS.KF-kfTracking).toLocaleString()} short`;
+    document.getElementById('target-wrap').innerHTML=`
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em">JF</span><span style="font-size:11px;color:var(--muted)">${lastJF} / ${TARGETS.JF}</span></div>
+        <div class="tbar-bg"><div class="tbar-fill" style="width:${jfPct}%;background:var(--jf)"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div style="font-size:10px;color:var(--muted)">${jfPct}% · ${(TARGETS.JF-lastJF).toLocaleString()} to go</div>
+          <div style="font-size:10px;color:${jfTrackColor}">${jfTrackMsg}</div>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em">KF</span><span style="font-size:11px;color:var(--muted)">${lastKF} / ${TARGETS.KF}</span></div>
+        <div class="tbar-bg"><div class="tbar-fill" style="width:${kfPct}%;background:var(--kf)"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div style="font-size:10px;color:var(--muted)">${kfPct}% · ${(TARGETS.KF-lastKF).toLocaleString()} to go</div>
+          <div style="font-size:10px;color:${kfTrackColor}">${kfTrackMsg}</div>
+        </div>
+      </div>
+    `;
+
+    // MONTHLY
+    if(monthlyChart) monthlyChart.destroy();
+    monthlyChart = new Chart(document.getElementById('chartMonthly'),{
+      type:'bar',
+      data:{labels:playMonths,datasets:[{data:monthlyCounts,backgroundColor:playMonths.map((_,i)=>i===playMonths.length-1?'rgba(232,89,60,0.7)':'rgba(255,255,255,0.12)'),borderColor:playMonths.map((_,i)=>i===playMonths.length-1?'#E8593C':'rgba(255,255,255,0.15)'),borderWidth:1,borderRadius:4,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:ctx=>`${ctx.parsed.y} play days`}}},scales:SCALES}
+    });
+
+    // TABLE
+    document.getElementById('matches-tbody').innerHTML=[...matches].reverse().slice(0,15).map(m=>{
+      const score=m.bestJF!==null&&m.bestKF!==null?`${m.bestJF}–${m.bestKF}`:'—';
+      const games=m.gamesJF!==null?`${m.gamesJF}`:'';
+      const bc=m.winner==='JF'?'bjf':m.winner==='KF'?'bkf':'bdraw';
+      const notes=m.notes.substring(0,55)+(m.notes.length>55?'…':'');
+      return `<tr>
+        <td style="color:var(--muted)">${m.date}</td>
+        <td style="font-family:var(--display);font-weight:700;font-size:15px">${score}</td>
+        <td style="color:var(--muted);font-size:11px">${games}</td>
+        <td><span class="badge ${bc}">${m.winner||'—'}</span></td>
+        <td style="color:var(--muted);font-size:11px">${notes}</td>
+      </tr>`;
+    }).join('');
+
+    window._matches = matches;
+    document.getElementById('updated-time').textContent='Updated '+new Date().toLocaleTimeString();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+    setTimeout(loadData, 5*60*1000);
+
+  } catch(err) {
+    document.getElementById('loading').innerHTML=`
+      <div class="err">
+        <strong>Could not load sheet data</strong><br>
+        ${err.message}<br><br>
+        <a href="${CSV_URL}" target="_blank">↗ Test CSV URL directly</a><br><br>
+        <button class="refresh-btn" onclick="location.reload()" style="margin-top:4px;display:inline-flex">↻ Try again</button>
+      </div>
+    `;
+    console.error(err);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
