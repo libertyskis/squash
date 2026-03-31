@@ -229,12 +229,33 @@ Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
     const jfConf = confMatch ? parseInt(confMatch[1]) : 55;
     const kfConf = 100 - jfConf;
 
+    // Convert to American odds with 10% vig
+    const jfImpl = (jfConf / 100) * 1.10;
+    const kfImpl = (kfConf / 100) * 1.10;
+    const jfOdds = jfImpl >= 0.5
+      ? '-' + Math.round((jfImpl / (1 - jfImpl)) * 100)
+      : '+' + Math.round(((1 - jfImpl) / jfImpl) * 100);
+    const kfOdds = kfImpl >= 0.5
+      ? '-' + Math.round((kfImpl / (1 - kfImpl)) * 100)
+      : '+' + Math.round(((1 - kfImpl) / kfImpl) * 100);
+
+    // Over/under: average total games from last 20 matches
+    const gameTotals = last20
+      .filter(m => m.gamesJF !== null && m.gamesKF !== null)
+      .map(m => m.gamesJF + m.gamesKF);
+    const avgGames = gameTotals.length
+      ? (gameTotals.reduce((a,b) => a+b, 0) / gameTotals.length)
+      : 8;
+    // Round to nearest 0.5 for a clean O/U line
+    const ouLine = (Math.round(avgGames * 2) / 2).toFixed(1);
+
     const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
 
     out.innerHTML = `
       <div style="width:100%">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">${today}</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
           <div style="font-size:10px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em;width:20px">JF</div>
           <div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
             <div style="width:${jfConf}%;background:var(--jf);border-radius:4px 0 0 4px"></div>
@@ -242,13 +263,31 @@ Keep it punchy and direct — like a pre-game briefing. Max 200 words.`;
           </div>
           <div style="font-size:10px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em;width:20px;text-align:right">KF</div>
         </div>
+
         <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px;font-family:var(--display);font-weight:800">
           <span style="color:var(--jf)">${jfConf}%</span>
           <span style="color:var(--kf)">${kfConf}%</span>
         </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">JF moneyline</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--jf)">${jfOdds}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Total games O/U</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--text)">${ouLine}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">-110 each side</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">KF moneyline</div>
+            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--kf)">${kfOdds}</div>
+          </div>
+        </div>
+
         <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text}</div>
         <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} head-to-head matches</span>
+          <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} H2H · 10% vig · O/U from avg ${avgGames.toFixed(1)} games</span>
           <button onclick="generatePrediction()" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>
         </div>
       </div>
