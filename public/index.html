@@ -278,16 +278,30 @@ Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max
       throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
     }
     let text = data.content.map(b => b.text || '').join('');
-    // Replace entire INGA'S BEST BET line — strip everything after the colon and rewrite
-    // with correct odds so Inga can never show wrong numbers
-    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(OVER)\s+[\d.]+[^\n]*/i,
-      `$1 **OVER ${ouLine2} (${ouOverOdds})**`);
-    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(UNDER)\s+[\d.]+[^\n]*/i,
-      `$1 **UNDER ${ouLine2} (${ouUnderOdds})**`);
-    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(JF\s+moneyline)[^\n]*/i,
-      `$1 **JF moneyline (${jfML})**`);
-    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(KF\s+moneyline)[^\n]*/i,
-      `$1 **KF moneyline (${kfML})**`);
+    // Rewrite INGA'S BEST BET line — strip asterisks first, then find and replace
+    // Inga sometimes writes **INGA'S BEST BET:** with asterisks around it
+    const cleanText = text.replace(/\*+INGA'S BEST BET:\*+/gi, "INGA'S BEST BET:");
+    const betIdx = cleanText.toUpperCase().indexOf("INGA'S BEST BET:");
+    if (betIdx !== -1) {
+      const beforeBet = cleanText.substring(0, betIdx);
+      const afterBet = cleanText.substring(betIdx + "INGA'S BEST BET:".length);
+      let betLine;
+      if (/under/i.test(afterBet)) {
+        betLine = `**UNDER ${ouLine2} (${ouUnderOdds})**`;
+      } else if (/over/i.test(afterBet)) {
+        betLine = `**OVER ${ouLine2} (${ouOverOdds})**`;
+      } else if (/kf/i.test(afterBet)) {
+        betLine = `**KF moneyline (${kfML})**`;
+      } else {
+        betLine = `**JF moneyline (${jfML})**`;
+      }
+      text = beforeBet + "INGA'S BEST BET: " + betLine;
+    } else {
+      // Fallback: append best bet if Inga forgot it entirely
+      text += `
+
+INGA'S BEST BET: **JF moneyline (${jfML})**`;
+    }
 
     // Parse confidence line for visual meter
     // Use data-calculated odds — don't trust Inga's numbers
@@ -484,7 +498,7 @@ async function loadData() {
     });
 
     // H2H DONUT
-    const last5 = matches.slice(-5);
+    const last5 = matches.slice(-6);
     const dotsHtml = last5.map(m => {
       const isJF = m.winner === 'JF';
       const bg = isJF ? '#E8593C' : '#3B8BD4';
