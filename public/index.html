@@ -278,11 +278,16 @@ Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max
       throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
     }
     let text = data.content.map(b => b.text || '').join('');
-    // Strip any odds Inga invented from her best bet line and inject correct ones
-    text = text.replace(/(INGA'S BEST BET:.*?)(OVER\s+[\d.]+)\s*\([^)]*\)/i, 
-      `$1$2 (${ouOverOdds})`);
-    text = text.replace(/(INGA'S BEST BET:.*?)(UNDER\s+[\d.]+)\s*\([^)]*\)/i, 
-      `$1$2 (${ouUnderOdds})`);
+    // Replace entire INGA'S BEST BET line — strip everything after the colon and rewrite
+    // with correct odds so Inga can never show wrong numbers
+    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(OVER)\s+[\d.]+[^\n]*/i,
+      `$1 **OVER ${ouLine2} (${ouOverOdds})**`);
+    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(UNDER)\s+[\d.]+[^\n]*/i,
+      `$1 **UNDER ${ouLine2} (${ouUnderOdds})**`);
+    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(JF\s+moneyline)[^\n]*/i,
+      `$1 **JF moneyline (${jfML})**`);
+    text = text.replace(/(\*{0,2}INGA'S BEST BET:\*{0,2})\s*\*{0,2}(KF\s+moneyline)[^\n]*/i,
+      `$1 **KF moneyline (${kfML})**`);
 
     // Parse confidence line for visual meter
     // Use data-calculated odds — don't trust Inga's numbers
