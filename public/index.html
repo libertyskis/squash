@@ -190,6 +190,17 @@ async function generatePrediction() {
   const gameTotals2 = last20.filter(m => m.bestJF !== null && m.bestKF !== null).map(m => m.bestJF + m.bestKF);
   const avgGames2 = gameTotals2.length ? (gameTotals2.reduce((a,b) => a+b, 0) / gameTotals2.length) : 4;
   const ouLine2 = (Math.floor(avgGames2) + 0.5).toFixed(1);
+  const ouLineNum2 = parseFloat(ouLine2);
+  const pOver2 = gameTotals2.length ? gameTotals2.filter(g => g > ouLineNum2).length / gameTotals2.length : 0.55;
+  const pUnder2 = 1 - pOver2;
+  const pOverVig2 = pOver2 * 1.10;
+  const pUnderVig2 = pUnder2 * 1.10;
+  const ouOverOdds = pOverVig2 >= 0.5
+    ? '-' + Math.round((pOverVig2 / (1 - pOverVig2)) * 100)
+    : '+' + Math.round(((1 - pOverVig2) / pOverVig2) * 100);
+  const ouUnderOdds = pUnderVig2 >= 0.5
+    ? '-' + Math.round((pUnderVig2 / (1 - pUnderVig2)) * 100)
+    : '+' + Math.round(((1 - pUnderVig2) / pUnderVig2) * 100);
 
   const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
 
