@@ -245,16 +245,26 @@ Keep it punchy and direct — like a pre-game briefing. Be precise with numbers 
     const text = data.content.map(b => b.text || '').join('');
 
     // Parse confidence line for visual meter
-    // Parse confidence from Inga's text
-    const confMatch = text.match(/(\d+)%\s*JF\s*\/\s*(\d+)%\s*KF/i) || text.match(/JF[:\s]+(\d+)%/i);
-    const jfConf = confMatch ? parseInt(confMatch[1]) : 55;
-    const kfConf = 100 - jfConf;
+    // Parse confidence from Inga's text — handle JF first or KF first
+    const confJFfirst = text.match(/(\d+)%\s*JF\s*\/\s*(\d+)%\s*KF/i);
+    const confKFfirst = text.match(/(\d+)%\s*KF\s*\/\s*(\d+)%\s*JF/i);
+    let jfConf, kfConf;
+    if (confJFfirst) {
+      jfConf = parseInt(confJFfirst[1]); kfConf = parseInt(confJFfirst[2]);
+    } else if (confKFfirst) {
+      kfConf = parseInt(confKFfirst[1]); jfConf = parseInt(confKFfirst[2]);
+    } else {
+      jfConf = 55; kfConf = 45;
+    }
 
-    // Try to parse Inga's own moneyline from text first — e.g. "JF -138 / KF +152"
-    const mlMatch = text.match(/JF\s*(-\d+)\s*\/\s*KF\s*(\+\d+)/i) || text.match(/JF\s*(\+\d+)\s*\/\s*KF\s*(-\d+)/i);
+    // Try to parse Inga's own moneyline — handle any ordering: JF/KF or KF/JF
     let jfOdds, kfOdds;
-    if (mlMatch) {
-      jfOdds = mlMatch[1]; kfOdds = mlMatch[2];
+    const mlJFfirst = text.match(/JF\s*([+-]\d+)\s*[\/,]\s*KF\s*([+-]\d+)/i);
+    const mlKFfirst = text.match(/KF\s*([+-]\d+)\s*[\/,]\s*JF\s*([+-]\d+)/i);
+    if (mlJFfirst) {
+      jfOdds = mlJFfirst[1]; kfOdds = mlJFfirst[2];
+    } else if (mlKFfirst) {
+      kfOdds = mlKFfirst[1]; jfOdds = mlKFfirst[2];
     } else {
       // Fall back to calculating from confidence
       const jfImpl = (jfConf / 100) * 1.10;
