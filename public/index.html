@@ -194,7 +194,11 @@ async function generatePrediction() {
   // Calculate O/U before building prompt so AI references the correct line
   const gameTotals2 = last20.filter(m => m.bestJF !== null && m.bestKF !== null).map(m => m.bestJF + m.bestKF);
   const avgGames2 = gameTotals2.length ? (gameTotals2.reduce((a,b) => a+b, 0) / gameTotals2.length) : 4;
-  const ouLine2 = (Math.floor(avgGames2) + 0.5).toFixed(1);
+  // Pick the .5 line where OVER is the favorite (>50%)
+  const candidateLow2 = Math.floor(avgGames2) - 0.5;
+  const candidateHigh2 = Math.floor(avgGames2) + 0.5;
+  const pOverLow2 = gameTotals2.filter(g => g > candidateLow2).length / (gameTotals2.length || 1);
+  const ouLine2 = (pOverLow2 >= 0.5 ? candidateLow2 : candidateHigh2).toFixed(1);
   const ouLineNum2 = parseFloat(ouLine2);
   const pOver2 = gameTotals2.length ? gameTotals2.filter(g => g > ouLineNum2).length / gameTotals2.length : 0.55;
   const pUnder2 = 1 - pOver2;
@@ -203,6 +207,9 @@ async function generatePrediction() {
   const vigTotal2 = 1.10;
   const iOver2 = pOver2 * vigTotal2;
   const iUnder2 = pUnder2 * vigTotal2;
+  // OVER is favorite when pOver > 0.5, so gets negative (cheap) odds
+  // American odds: favorite = -(impliedProb / (1-impliedProb)) * 100
+  // Underdog = +((1-impliedProb) / impliedProb) * 100
   const ouOverOdds = iOver2 >= 0.5
     ? '-' + Math.round((iOver2 / (1 - iOver2)) * 100)
     : '+' + Math.round(((1 - iOver2) / iOver2) * 100);
@@ -320,7 +327,10 @@ INGA'S BEST BET: **JF moneyline (${jfML})**`;
       ? (gameTotals.reduce((a,b) => a+b, 0) / gameTotals.length)
       : 8;
     // Round to nearest 0.5 for a clean O/U line
-    const ouLine = (Math.floor(avgGames) + 0.5).toFixed(1);
+    const candidateLow = Math.floor(avgGames) - 0.5;
+    const candidateHigh = Math.floor(avgGames) + 0.5;
+    const pOverLow = gameTotals.filter(g => g > candidateLow).length / (gameTotals.length || 1);
+    const ouLine = (pOverLow >= 0.5 ? candidateLow : candidateHigh).toFixed(1);
     // Calculate true probability of OVER based on distance from average
     // line is always below avg (floor+0.5), so OVER is favorite
     const ouLineNum = parseFloat(ouLine);
@@ -331,10 +341,10 @@ INGA'S BEST BET: **JF moneyline (${jfML})**`;
     const pUnder = 1 - pOver;
     const iOver = pOver * 1.10;
     const iUnder = pUnder * 1.10;
-    const ouOverOddsDisp = iOver >= 0.5
+    const ouOverOddsDisp = iOver > 0.5
       ? '-' + Math.round((iOver / (1 - iOver)) * 100)
       : '+' + Math.round(((1 - iOver) / iOver) * 100);
-    const ouUnderOddsDisp = iUnder >= 0.5
+    const ouUnderOddsDisp = iUnder > 0.5
       ? '-' + Math.round((iUnder / (1 - iUnder)) * 100)
       : '+' + Math.round(((1 - iUnder) / iUnder) * 100);
 
