@@ -95,7 +95,7 @@
         <div class="chart-wrap" style="height:280px"><canvas id="chartLine"></canvas></div>
       </div>
       <div class="chart-card">
-        <h2>Last 5 matches</h2><p class="chart-sub">Most recent on the right</p>
+        <h2>Last 6 matches</h2><p class="chart-sub">Most recent on the right</p>
         <div class="h2h-wrap" id="h2h-wrap"></div>
       </div>
     </div>
@@ -278,6 +278,8 @@ Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max
       throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
     }
     let text = data.content.map(b => b.text || '').join('');
+    console.log('RAW INGA OUTPUT:', text);
+    console.log('ouOverOdds:', ouOverOdds, 'ouUnderOdds:', ouUnderOdds);
     // Rewrite INGA'S BEST BET line — strip asterisks first, then find and replace
     // Inga sometimes writes **INGA'S BEST BET:** with asterisks around it
     const cleanText = text.replace(/\*+INGA'S BEST BET:\*+/gi, "INGA'S BEST BET:");
