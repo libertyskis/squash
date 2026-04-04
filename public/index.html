@@ -717,12 +717,18 @@ async function loadData() {
         '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">' +
         last6contests.map(c => {
           const totalWins = c.winJF + c.winKF + c.winAG;
-          const jfWinPct = totalWins > 0 ? Math.round(c.winJF/totalWins*100) : 0;
-          const barColor = jfWinPct >= 60 ? '#27A06B' : jfWinPct >= 40 ? '#E8A020' : '#E8593C';
+          const jfWinPct = totalWins > 0 ? c.winJF/totalWins : 0;
+          const barColor = jfWinPct >= 0.6 ? '#27A06B' : jfWinPct >= 0.4 ? '#E8A020' : '#E8593C';
+          // Build score string showing each player's wins
+          let scoreParts = ['JF:' + c.winJF];
+          if (c.winKF > 0) scoreParts.push('KF:' + c.winKF);
+          if (c.winAG > 0) scoreParts.push('AG:' + c.winAG);
+          const scoreStr = scoreParts.join(' · ');
           return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;text-align:center">' +
             '<div style="font-size:10px;color:rgba(240,237,232,0.45);margin-bottom:6px">' + c.date + '</div>' +
-            '<div style="font-family:var(--display);font-size:18px;font-weight:800;color:' + barColor + '">' + c.winJF + '-' + (totalWins - c.winJF) + '</div>' +
-            '<div style="font-size:10px;color:rgba(240,237,232,0.45);margin-top:4px">' + c.gamesJF + ' games</div>' +
+            '<div style="font-family:var(--display);font-size:18px;font-weight:800;color:' + barColor + '">' + c.winJF + '</div>' +
+            '<div style="font-size:10px;color:rgba(240,237,232,0.45);margin-top:2px">' + scoreStr + '</div>' +
+            '<div style="font-size:10px;color:rgba(240,237,232,0.3);margin-top:2px">' + c.gamesJF + ' games</div>' +
             '</div>';
         }).join('') +
         '</div>' +
