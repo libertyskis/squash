@@ -330,10 +330,7 @@ Use ONLY these exact odds. Do not invent or change any numbers. Be precise with 
       throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
     }
     let text = data.content.map(b => b.text || '').join('');
-    console.log('FORM STATS:', window._jfFormStats);
-    console.log('ALL CONTESTS count:', (window._allContests||[]).length);
-    console.log('RAW INGA OUTPUT:', text);
-    console.log('ouOverOdds:', ouOverOdds, 'ouUnderOdds:', ouUnderOdds);
+
     // Fix any wrong odds Inga may have written — replace all 4 bet references with correct values
     text = text.replace(/JF\s+moneyline\s*\([^)]*\)/gi, `JF moneyline (${jfML})`);
     text = text.replace(/KF\s+moneyline\s*\([^)]*\)/gi, `KF moneyline (${kfML})`);
