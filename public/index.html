@@ -120,6 +120,12 @@
         <div id="pace-wrap" style="padding-top:4px"></div>
       </div>
     </div>
+    <div class="chart-card" style="margin-bottom:16px">
+      <h2>Last 6 sessions</h2>
+      <p class="chart-sub">All play — any opponent</p>
+      <div id="contests-wrap" style="margin-top:8px"></div>
+    </div>
+
     <div class="target-section">
       <div class="target-card"><h2>Target progress</h2><div id="target-wrap"></div></div>
       <div class="chart-card">
@@ -194,6 +200,15 @@ async function generatePrediction() {
   }).join('\n');
 
   // Pre-calculate recent form so Inga has accurate counts
+  // Pull form stats calculated during page load
+  const formStats = window._jfFormStats || {};
+  const allContests = window._allContests || [];
+  const last6All = allContests.slice(-6);
+  const formSummary = last6All.length ? last6All.map(c => {
+    const tot = c.winJF+c.winKF+c.winAG;
+    return c.date + ': JF ' + c.winJF + '-' + (tot-c.winJF) + ' (' + c.gamesJF + ' games)';
+  }).join('\n') : 'No recent session data';
+
   const last6 = last20.slice(-6);
   const last6JF = last6.filter(m=>m.winner==='JF').length;
   const last6KF = last6.filter(m=>m.winner==='KF').length;
@@ -250,6 +265,12 @@ ${matchSummary}
 LAST 6 MATCHES (use these exact results — do not deviate):
 ${last6Summary}
 JF won ${last6JF} of the last 6, KF won ${last6KF}.
+
+JF RECENT FORM (last 6 sessions, ALL opponents):
+${formSummary}
+JF win rate last 6 sessions: ${formStats.jfWinRateLast6 !== undefined ? Math.round(formStats.jfWinRateLast6*100)+'%' : 'N/A'} vs prior 6: ${formStats.jfWinRatePrior6 !== undefined ? Math.round(formStats.jfWinRatePrior6*100)+'%' : 'N/A'}
+Games/session last 6: ${formStats.avgGamesLast6 !== undefined ? formStats.avgGamesLast6.toFixed(1) : 'N/A'} vs season avg: ${formStats.avgGamesAll !== undefined ? formStats.avgGamesAll.toFixed(1) : 'N/A'}
+Form trend: ${formStats.trend || 'N/A'}
 
 OVERALL: JF has won ${jfWins} of the last ${last20.length} matches (${Math.round(jfWinRate*100)}%), KF has won ${kfWins} (${Math.round(kfWinRate*100)}%).
 
@@ -482,7 +503,7 @@ async function loadData() {
     renderBanner(bannerText);
 
     const chartDates=[], jfPts=[], kfPts=[], matches=[];
-    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0, jfTracking=0, kfTracking=0;
+    let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0, jfTracking=0, kfTracking=0; const allContests=[];
     const monthlyMap={};
     const MON_ORDER=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -510,11 +531,16 @@ async function loadData() {
       if (rn!==null && rn>=1 && rn<=100) {
         const date=(row[1]||'').trim(), played=(row[2]||'').trim().toUpperCase();
         const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
-        const gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
+        const winAG=toNum(row[6]), winJF=toNum(row[7]), winKF=toNum(row[8]);
+        const gamesAG=toNum(row[9]), gamesJF=toNum(row[10]), gamesKF=toNum(row[11]);
         const notes=(row[22]||'').trim();
         const shutout=(row[21]||'').trim().toUpperCase();
         if (shutout==='JF') jfShutouts++;
         else if (shutout==='KF') kfShutouts++;
+        // Track all play sessions (any day JF played)
+        if (played==='Y' && (winJF!==null || gamesJF!==null)) {
+          allContests.push({date, winJF:winJF||0, winKF:winKF||0, winAG:winAG||0, gamesJF:gamesJF||0, gamesKF:gamesKF||0, notes});
+        }
 
         if (played==='Y') {
           totalPlayDays++;
@@ -672,6 +698,43 @@ async function loadData() {
     }).join('');
 
     window._matches = matches;
+    window._allContests = allContests;
+
+    // Render last 6 sessions card
+    const last6contests = allContests.slice(-6);
+    const contestsWrap = document.getElementById('contests-wrap');
+    if (contestsWrap && last6contests.length) {
+      // Calculate form trend: compare JF win rate in last 6 vs prior 6
+      const prior6 = allContests.slice(-12, -6);
+      const jfWinRateLast6 = last6contests.reduce((s,c)=>s+c.winJF,0) / (last6contests.reduce((s,c)=>s+c.winJF+c.winKF+c.winAG,0)||1);
+      const jfWinRatePrior6 = prior6.length ? prior6.reduce((s,c)=>s+c.winJF,0) / (prior6.reduce((s,c)=>s+c.winJF+c.winKF+c.winAG,0)||1) : jfWinRateLast6;
+      const avgGamesLast6 = last6contests.reduce((s,c)=>s+c.gamesJF,0) / last6contests.length;
+      const avgGamesAll = allContests.reduce((s,c)=>s+c.gamesJF,0) / allContests.length;
+      const trend = jfWinRateLast6 > jfWinRatePrior6 + 0.05 ? '↑ trending up' : jfWinRateLast6 < jfWinRatePrior6 - 0.05 ? '↓ trending down' : '→ steady';
+      const trendColor = trend.startsWith('↑') ? '#27A06B' : trend.startsWith('↓') ? '#E8593C' : 'rgba(240,237,232,0.45)';
+
+      contestsWrap.innerHTML = 
+        '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">' +
+        last6contests.map(c => {
+          const totalWins = c.winJF + c.winKF + c.winAG;
+          const jfWinPct = totalWins > 0 ? Math.round(c.winJF/totalWins*100) : 0;
+          const barColor = jfWinPct >= 60 ? '#27A06B' : jfWinPct >= 40 ? '#E8A020' : '#E8593C';
+          return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;text-align:center">' +
+            '<div style="font-size:10px;color:rgba(240,237,232,0.45);margin-bottom:6px">' + c.date + '</div>' +
+            '<div style="font-family:var(--display);font-size:18px;font-weight:800;color:' + barColor + '">' + c.winJF + '-' + (totalWins - c.winJF) + '</div>' +
+            '<div style="font-size:10px;color:rgba(240,237,232,0.45);margin-top:4px">' + c.gamesJF + ' games</div>' +
+            '</div>';
+        }).join('') +
+        '</div>' +
+        '<div style="display:flex;gap:24px;font-size:11px;color:rgba(240,237,232,0.45);padding-top:12px;border-top:1px solid rgba(255,255,255,0.07)">' +
+          '<span>JF win rate (last 6): <span style="color:#f0ede8;font-weight:500">' + Math.round(jfWinRateLast6*100) + '%</span></span>' +
+          '<span>Avg games/session: <span style="color:#f0ede8;font-weight:500">' + avgGamesLast6.toFixed(1) + '</span> vs <span style="color:rgba(240,237,232,0.45)">' + avgGamesAll.toFixed(1) + ' season avg</span></span>' +
+          '<span style="color:' + trendColor + ';font-weight:500">' + trend + '</span>' +
+        '</div>';
+
+      // Store form stats for prediction prompt
+      window._jfFormStats = { jfWinRateLast6, jfWinRatePrior6, avgGamesLast6, avgGamesAll, trend };
+    }
     document.getElementById('updated-time').textContent='Updated '+new Date().toLocaleTimeString();
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
