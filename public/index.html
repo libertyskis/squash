@@ -390,33 +390,7 @@ Use ONLY these exact odds. Do not invent or change any numbers. Be precise with 
         </div>
 
         <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text.split('BETTING CARD:')[0].split('BETTING CARD')[0]}</div>
-        ${(()=>{
-          const cardIdx = text.toUpperCase().indexOf('BETTING CARD');
-          if (cardIdx === -1) return '';
-          const cardText = text.substring(cardIdx);
-          const ranks = [
-            { emoji: '🥇', label: 'Best bet',   color: '#E8A020' },
-            { emoji: '🥈', label: 'Second bet',  color: '#8899AA' },
-            { emoji: '🥉', label: 'Third bet',   color: '#AA7744' },
-            { emoji: '🚫', label: 'Worst bet',   color: '#884444' },
-          ];
-          const lines = cardText.split('\n').filter(l => l.trim());
-          const cards = lines.slice(1).filter(l => /🥇|🥈|🥉|🚫|BEST|SECOND|THIRD|WORST/i.test(l)).slice(0,4);
-          if (!cards.length) return `<div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${cardText}</div>`;
-          return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">' +
-            cards.map((line, i) => {
-              const r = ranks[i] || ranks[3];
-              const clean = line.replace(/🥇|🥈|🥉|🚫/g,'').replace(/\*+/g,'').replace(/BEST BET:|SECOND BET:|THIRD BET:|WORST BET:|SECOND BEST:/gi,'').trim();
-              const parts = clean.split('—');
-              const bet = (parts[0]||'').trim();
-              const reason = (parts[1]||'').trim();
-              return `<div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px">
-                <div style="font-size:10px;color:${r.color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">${r.emoji} ${r.label}</div>
-                <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">${bet}</div>
-                <div style="font-size:11px;color:var(--muted);line-height:1.5">${reason}</div>
-              </div>`;
-            }).join('') + '</div>';
-        })()}
+        ${renderBettingCard(text)}
         <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} H2H · 10% vig · O/U from avg ${avgGames.toFixed(1)} games</span>
           <button onclick="generatePrediction()" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>
@@ -428,6 +402,39 @@ Use ONLY these exact odds. Do not invent or change any numbers. Be precise with 
   }
   btn.disabled = false;
   btn.textContent = '⚡ Generate';
+}
+
+function renderBettingCard(text) {
+  try {
+    var cardIdx = text.toUpperCase().indexOf('BETTING CARD');
+    if (cardIdx === -1) return '';
+    var cardText = text.substring(cardIdx);
+    var ranks = [
+      { label: 'Best bet',   color: '#E8A020' },
+      { label: 'Second bet', color: '#8899AA' },
+      { label: 'Third bet',  color: '#CD7F32' },
+      { label: 'Worst bet',  color: '#884444' },
+    ];
+    var lines = cardText.split('\n').filter(function(l){ return l.trim(); });
+    var cards = lines.slice(1).filter(function(l){ return /BEST|SECOND|THIRD|WORST/i.test(l); }).slice(0,4);
+    if (!cards.length) return '<div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">' + cardText + '</div>';
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">' +
+      cards.map(function(line, i) {
+        var r = ranks[i] || ranks[3];
+        var clean = line.replace(/\*+/g,'').replace(/BEST BET:|SECOND BET:|SECOND BEST:|THIRD BET:|WORST BET:/gi,'').trim();
+        var parts = clean.split(/\s+\u2014\s+|\s+-\s+/);
+        var bet = (parts[0]||'').trim();
+        var reason = (parts[1]||'').trim();
+        return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">' +
+          '<div style="font-size:10px;color:' + r.color + ';text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">' + r.label + '</div>' +
+          '<div style="font-size:13px;font-weight:500;color:#f0ede8;margin-bottom:4px">' + bet + '</div>' +
+          '<div style="font-size:11px;color:rgba(240,237,232,0.45);line-height:1.5">' + reason + '</div>' +
+          '</div>';
+      }).join('') + '</div>';
+  } catch(e) {
+    console.error('renderBettingCard error:', e);
+    return '';
+  }
 }
 
 function renderBanner(text) {
