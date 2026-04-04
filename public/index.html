@@ -28,6 +28,16 @@
   .last-updated { font-size:11px; color:var(--muted); text-align:right; }
   .refresh-btn { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:6px 12px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-family:var(--mono); font-size:11px; cursor:pointer; transition:all 0.15s; }
   .refresh-btn:hover { border-color:rgba(255,255,255,0.2); color:var(--text); }
+  .banner {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 18px; border-radius:10px;
+    border:1px solid rgba(255,255,255,0.12);
+    font-size:13px; line-height:1.4; max-width:400px;
+    animation: bannerIn 0.4s ease;
+  }
+  @keyframes bannerIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  .banner-emoji { font-size:22px; flex-shrink:0; }
+  .banner-text { color:var(--text); }
   .main { padding:32px 40px; max-width:1400px; }
   .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:32px; }
   .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
@@ -82,6 +92,7 @@
       <h1><svg viewBox="0 0 24 24" width="28" height="28" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:3px"><circle cx="12" cy="12" r="11" fill="#111"/><circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><circle cx="9" cy="11" r="1.2" fill="rgba(255,255,255,0.75)"/><circle cx="15" cy="13" r="1.2" fill="rgba(255,255,255,0.75)"/></svg><span class="jf">JF</span> vs <span class="kf">KF</span> — Squash 2026</h1>
       <p>Live from Google Sheets · Auto-refreshes every 5 min</p>
     </div>
+    <div id="banner-wrap"></div>
     <div class="last-updated">
       <div id="updated-time">—</div>
       <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
@@ -252,9 +263,22 @@ Provide a concise analysis:
 2. Key patterns and trends
 3. Physical/contextual factors from the notes
 4. Brief prediction narrative
-5. End with exactly "INGA'S BEST BET:" on its own line, followed by one bold recommendation using ONLY the odds provided above — e.g. "**OVER ${ouLine2} (${ouOverOdds})**" or "**JF moneyline (${jfML})**"
 
-Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max 250 words.`;
+Then end with exactly this betting card format — evaluate all 4 bets and rank them:
+
+BETTING CARD:
+🥇 BEST BET: [bet name] ([odds]) — [one sentence why]
+🥈 SECOND BEST: [bet name] ([odds]) — [one sentence why]
+🥉 THIRD BET: [bet name] ([odds]) — [one sentence why]
+❌ WORST BET: [bet name] ([odds]) — [one sentence why]
+
+The 4 bets to rank are:
+- JF moneyline (${jfML})
+- KF moneyline (${kfML})
+- OVER ${ouLine2} (${ouOverOdds})
+- UNDER ${ouLine2} (${ouUnderOdds})
+
+Use ONLY these exact odds. Do not invent or change any numbers. Be precise with sample sizes. Max 300 words.`;
 
   try {
     out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
@@ -287,30 +311,11 @@ Rules: Be precise with numbers. Always cite sample size. Do not invent odds. Max
     let text = data.content.map(b => b.text || '').join('');
     console.log('RAW INGA OUTPUT:', text);
     console.log('ouOverOdds:', ouOverOdds, 'ouUnderOdds:', ouUnderOdds);
-    // Rewrite INGA'S BEST BET line — strip asterisks first, then find and replace
-    // Inga sometimes writes **INGA'S BEST BET:** with asterisks around it
-    const cleanText = text.replace(/\*+INGA'S BEST BET:\*+/gi, "INGA'S BEST BET:");
-    const betIdx = cleanText.toUpperCase().indexOf("INGA'S BEST BET:");
-    if (betIdx !== -1) {
-      const beforeBet = cleanText.substring(0, betIdx);
-      const afterBet = cleanText.substring(betIdx + "INGA'S BEST BET:".length);
-      let betLine;
-      if (/under/i.test(afterBet)) {
-        betLine = `**UNDER ${ouLine2} (${ouUnderOdds})**`;
-      } else if (/over/i.test(afterBet)) {
-        betLine = `**OVER ${ouLine2} (${ouOverOdds})**`;
-      } else if (/kf/i.test(afterBet)) {
-        betLine = `**KF moneyline (${kfML})**`;
-      } else {
-        betLine = `**JF moneyline (${jfML})**`;
-      }
-      text = beforeBet + "INGA'S BEST BET: " + betLine;
-    } else {
-      // Fallback: append best bet if Inga forgot it entirely
-      text += `
-
-INGA'S BEST BET: **JF moneyline (${jfML})**`;
-    }
+    // Fix any wrong odds Inga may have written — replace all 4 bet references with correct values
+    text = text.replace(/JF\s+moneyline\s*\([^)]*\)/gi, `JF moneyline (${jfML})`);
+    text = text.replace(/KF\s+moneyline\s*\([^)]*\)/gi, `KF moneyline (${kfML})`);
+    text = text.replace(/OVER\s+[\d.]+\s*\([^)]*\)/gi, `OVER ${ouLine2} (${ouOverOdds})`);
+    text = text.replace(/UNDER\s+[\d.]+\s*\([^)]*\)/gi, `UNDER ${ouLine2} (${ouUnderOdds})`);
 
     // Parse confidence line for visual meter
     // Use data-calculated odds — don't trust Inga's numbers
@@ -384,7 +389,34 @@ INGA'S BEST BET: **JF moneyline (${jfML})**`;
           </div>
         </div>
 
-        <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text}</div>
+        <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text.split('BETTING CARD:')[0].split('BETTING CARD')[0]}</div>
+        ${(()=>{
+          const cardIdx = text.toUpperCase().indexOf('BETTING CARD');
+          if (cardIdx === -1) return '';
+          const cardText = text.substring(cardIdx);
+          const ranks = [
+            { emoji: '🥇', label: 'Best bet',   color: '#E8A020' },
+            { emoji: '🥈', label: 'Second bet',  color: '#8899AA' },
+            { emoji: '🥉', label: 'Third bet',   color: '#AA7744' },
+            { emoji: '🚫', label: 'Worst bet',   color: '#884444' },
+          ];
+          const lines = cardText.split('\n').filter(l => l.trim());
+          const cards = lines.slice(1).filter(l => /🥇|🥈|🥉|🚫|BEST|SECOND|THIRD|WORST/i.test(l)).slice(0,4);
+          if (!cards.length) return `<div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${cardText}</div>`;
+          return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">' +
+            cards.map((line, i) => {
+              const r = ranks[i] || ranks[3];
+              const clean = line.replace(/🥇|🥈|🥉|🚫/g,'').replace(/\*+/g,'').replace(/BEST BET:|SECOND BET:|THIRD BET:|WORST BET:|SECOND BEST:/gi,'').trim();
+              const parts = clean.split('—');
+              const bet = (parts[0]||'').trim();
+              const reason = (parts[1]||'').trim();
+              return `<div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px">
+                <div style="font-size:10px;color:${r.color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">${r.emoji} ${r.label}</div>
+                <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">${bet}</div>
+                <div style="font-size:11px;color:var(--muted);line-height:1.5">${reason}</div>
+              </div>`;
+            }).join('') + '</div>';
+        })()}
         <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} H2H · 10% vig · O/U from avg ${avgGames.toFixed(1)} games</span>
           <button onclick="generatePrediction()" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>
@@ -398,6 +430,37 @@ INGA'S BEST BET: **JF moneyline (${jfML})**`;
   btn.textContent = '⚡ Generate';
 }
 
+function renderBanner(text) {
+  const wrap = document.getElementById('banner-wrap');
+  if (!wrap) return;
+  if (!text) { wrap.innerHTML = ''; return; }
+
+  // Pick emoji based on keywords in the text
+  const t = text.toLowerCase();
+  let emoji = '📢';
+  let bg = 'rgba(255,255,255,0.04)';
+  if (/broke|injury|hurt|fracture|foot|ankle|knee|wrist|shoulder|strain|sprain|surgery/i.test(t)) {
+    emoji = '🩼'; bg = 'rgba(232,89,60,0.12)';
+  } else if (/get well|heal|recover|rest/i.test(t)) {
+    emoji = '💪'; bg = 'rgba(232,89,60,0.12)';
+  } else if (/win|won|champion|victory|streak/i.test(t)) {
+    emoji = '🏆'; bg = 'rgba(39,160,107,0.12)';
+  } else if (/tonight|today|match|game|playing|scheduled/i.test(t)) {
+    emoji = '🎾'; bg = 'rgba(59,139,212,0.12)';
+  } else if (/record|milestone|first|best|most/i.test(t)) {
+    emoji = '⭐'; bg = 'rgba(250,199,117,0.12)';
+  } else if (/trash|bring it|easy|scared|nervous/i.test(t)) {
+    emoji = '🗑️'; bg = 'rgba(127,119,221,0.12)';
+  } else if (/congrat|great|amazing|awesome|well played/i.test(t)) {
+    emoji = '🎉'; bg = 'rgba(39,160,107,0.12)';
+  }
+
+  wrap.innerHTML = `<div class="banner" style="background:${bg}">
+    <span class="banner-emoji">${emoji}</span>
+    <span class="banner-text">${text}</span>
+  </div>`;
+}
+
 async function loadData() {
   try {
     document.getElementById('loading').style.display = 'flex';
@@ -406,6 +469,10 @@ async function loadData() {
     const resp = await fetch(CSV_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const rows = parseCSV(await resp.text());
+
+    // Read M8 = row index 7, col index 12 = BannerText
+    const bannerText = rows.length > 7 ? (rows[7][12]||'').trim() : '';
+    renderBanner(bannerText);
 
     const chartDates=[], jfPts=[], kfPts=[], matches=[];
     let jfWins=0, kfWins=0, totalPlayDays=0, lastJF=0, lastKF=0, jfShutouts=0, kfShutouts=0, jfTracking=0, kfTracking=0;
