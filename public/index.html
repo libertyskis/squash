@@ -743,8 +743,6 @@ async function loadData() {
     document.getElementById('updated-time').textContent='Updated '+new Date().toLocaleTimeString();
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
-    setTimeout(loadData, 5*60*1000);
-
   } catch(err) {
     document.getElementById('loading').innerHTML=`
       <div class="err">
@@ -759,6 +757,7 @@ async function loadData() {
 }
 
 loadData();
+setInterval(loadData, 5 * 60 * 1000);
 </script>
 </body>
 </html>
