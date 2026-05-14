@@ -527,7 +527,7 @@ async function loadData() {
       }
       // col 12 = M = Point winner (JF or KF), col 1 = date
       const rn = toNum(row[0]);
-      if (rn!==null && rn>=1 && rn<=100) {
+      if (rn!==null && rn>=1 && rn<=500) {
         const date=(row[1]||'').trim(), played=(row[2]||'').trim().toUpperCase();
         const bestJF=toNum(row[4]), bestKF=toNum(row[5]);
         const winAG=toNum(row[6]), winJF=toNum(row[7]), winKF=toNum(row[8]);
@@ -556,7 +556,7 @@ async function loadData() {
     let jfCum=0, kfCum=0;
     for (const row of rows) {
       const rn=toNum(row[0]);
-      if (rn!==null && rn>=1 && rn<=100) {
+      if (rn!==null && rn>=1 && rn<=500) {
         const date=(row[1]||'').trim();
         const point=(row[12]||'').trim().toUpperCase();
         if (point==='JF') jfCum++;
