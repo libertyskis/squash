@@ -179,283 +179,8 @@ function parseCSV(text) {
 
 const toNum = v => { const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? null : n; };
 
-async function generatePrediction() {
-  const btn = document.getElementById('predict-btn');
-  const out = document.getElementById('prediction-output');
-  btn.disabled = true;
-  btn.textContent = '...thinking';
-
-  // Pull last 20 head-to-head matches from already-parsed matches array
-  const h2h = window._matches || [];
-  if (h2h.length === 0) {
-    out.innerHTML = '<div style="font-size:12px;color:var(--muted)">No match data loaded yet — refresh the page first.</div>';
-    btn.disabled = false; btn.textContent = '⚡ Generate';
-    return;
-  }
-  const last20 = h2h.slice(-20);
-  const matchSummary = last20.map((m, i) => {
-    const winner = m.winner || 'no result';
-    const notes = m.notes ? ` (${m.notes})` : '';
-    return `${i+1}. ${m.date}: JF ${m.bestJF} - KF ${m.bestKF}, winner: ${winner}${notes}`;
-  }).join('\n');
-
-  // Pre-calculate recent form so Inga has accurate counts
-  // Pull form stats calculated during page load
-  const formStats = window._jfFormStats || {};
-  const allContests = window._allContests || [];
-  const last6All = allContests.slice(-6);
-  const formSummary = last6All.length ? last6All.map(c => {
-    const tot = c.winJF+c.winKF+c.winAG;
-    return c.date + ': JF ' + c.winJF + '-' + (tot-c.winJF) + ' (' + c.gamesJF + ' games)';
-  }).join('\n') : 'No recent session data';
-
-  const last6 = last20.slice(-6);
-  const last6JF = last6.filter(m=>m.winner==='JF').length;
-  const last6KF = last6.filter(m=>m.winner==='KF').length;
-  const lastWinner = last20[last20.length-1]?.winner || 'unknown';
-
-  const jfWins = last20.filter(m=>m.winner==='JF').length;
-  const kfWins = last20.filter(m=>m.winner==='KF').length;
-
-  // Calculate O/U before building prompt so AI references the correct line
-  const gameTotals2 = last20.filter(m => m.bestJF !== null && m.bestKF !== null).map(m => m.bestJF + m.bestKF);
-  const avgGames2 = gameTotals2.length ? (gameTotals2.reduce((a,b) => a+b, 0) / gameTotals2.length) : 4;
-  // Pick the .5 line where OVER is the favorite (>50%)
-  const candidateLow2 = Math.floor(avgGames2) - 0.5;
-  const candidateHigh2 = Math.floor(avgGames2) + 0.5;
-  const pOverLow2 = gameTotals2.filter(g => g > candidateLow2).length / (gameTotals2.length || 1);
-  const ouLine2 = (pOverLow2 >= 0.5 ? candidateLow2 : candidateHigh2).toFixed(1);
-  const ouLineNum2 = parseFloat(ouLine2);
-  const pOver2 = gameTotals2.length ? gameTotals2.filter(g => g > ouLineNum2).length / gameTotals2.length : 0.55;
-  const pUnder2 = 1 - pOver2;
-  // Apply vig by scaling so total implied probability = 110%
-  // Each side's implied prob = true prob * 1.10, then convert to American odds
-  const vigTotal2 = 1.10;
-  const iOver2 = pOver2 * vigTotal2;
-  const iUnder2 = pUnder2 * vigTotal2;
-  // OVER is favorite when pOver > 0.5, so gets negative (cheap) odds
-  // American odds: favorite = -(impliedProb / (1-impliedProb)) * 100
-  // Underdog = +((1-impliedProb) / impliedProb) * 100
-  const ouOverOdds = iOver2 >= 0.5
-    ? '-' + Math.round((iOver2 / (1 - iOver2)) * 100)
-    : '+' + Math.round(((1 - iOver2) / iOver2) * 100);
-  const ouUnderOdds = iUnder2 >= 0.5
-    ? '-' + Math.round((iUnder2 / (1 - iUnder2)) * 100)
-    : '+' + Math.round(((1 - iUnder2) / iUnder2) * 100);
-
-  const last6Summary = last6.map((m,i) => `${i+1}. ${m.date}: ${m.bestJF}-${m.bestKF}, winner: ${m.winner||'none'}`).join('\n');
-
-  // Calculate moneyline from data — JF win rate over last 20 with 10% vig
-  const jfWinRate = jfWins / last20.length;
-  const kfWinRate = 1 - jfWinRate;
-  const jfVig = jfWinRate * 1.10;
-  const kfVig = kfWinRate * 1.10;
-  const jfML = jfVig >= 0.5
-    ? '-' + Math.round((jfVig / (1 - jfVig)) * 100)
-    : '+' + Math.round(((1 - jfVig) / jfVig) * 100);
-  const kfML = kfVig >= 0.5
-    ? '-' + Math.round((kfVig / (1 - kfVig)) * 100)
-    : '+' + Math.round(((1 - kfVig) / kfVig) * 100);
-
-  const prompt = `You are a professional sports betting analyst specializing in squash. Analyze these last ${last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
-
-MATCH HISTORY (oldest to most recent):
-${matchSummary}
-
-LAST 6 MATCHES (use these exact results — do not deviate):
-${last6Summary}
-JF won ${last6JF} of the last 6, KF won ${last6KF}.
-
-JF RECENT FORM (last 6 sessions, ALL opponents):
-${formSummary}
-JF win rate last 6 sessions: ${formStats.jfWinRateLast6 !== undefined ? Math.round(formStats.jfWinRateLast6*100)+'%' : 'N/A'} vs prior 6: ${formStats.jfWinRatePrior6 !== undefined ? Math.round(formStats.jfWinRatePrior6*100)+'%' : 'N/A'}
-Games/session last 6: ${formStats.avgGamesLast6 !== undefined ? formStats.avgGamesLast6.toFixed(1) : 'N/A'} vs season avg: ${formStats.avgGamesAll !== undefined ? formStats.avgGamesAll.toFixed(1) : 'N/A'}
-Form trend: ${formStats.trend || 'N/A'}
-
-OVERALL: JF has won ${jfWins} of the last ${last20.length} matches (${Math.round(jfWinRate*100)}%), KF has won ${kfWins} (${Math.round(kfWinRate*100)}%).
-
-BETTING LINES (already calculated — do NOT recalculate or change these numbers):
-- JF moneyline: ${jfML} | KF moneyline: ${kfML}
-- Total games O/U: ${ouLine2} | OVER pays ${ouOverOdds} | UNDER pays ${ouUnderOdds}
-- Games in a match can only be 3, 4, or 5 (best of 5 format)
-
-Provide a concise analysis:
-1. Current form (last 6 matches)
-2. Key patterns and trends
-3. Physical/contextual factors from the notes
-4. Brief prediction narrative
-
-Then end with exactly this betting card format — evaluate all 4 bets and rank them:
-
-BETTING CARD:
-🥇 BEST BET: [bet name] ([odds]) — [one sentence why]
-🥈 SECOND BEST: [bet name] ([odds]) — [one sentence why]
-🥉 THIRD BET: [bet name] ([odds]) — [one sentence why]
-❌ WORST BET: [bet name] ([odds]) — [one sentence why]
-
-The 4 bets to rank are:
-- JF moneyline (${jfML})
-- KF moneyline (${kfML})
-- OVER ${ouLine2} (${ouOverOdds})
-- UNDER ${ouLine2} (${ouUnderOdds})
-
-Use ONLY these exact odds. Do not invent or change any numbers. Be precise with sample sizes. Max 300 words.`;
-
-  try {
-    out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>Analyzing ${last20.length} matches...</div>`;
-
-    // Retry up to 3 times on overload
-    let data, response;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><div class="spinner"></div>${attempt > 1 ? `Retry ${attempt-1}...` : `Analyzing ${last20.length} matches...`}</div>`;
-      response = await fetch('/api/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
-      data = await response.json();
-      if (data.error?.type === 'overloaded_error' || (typeof data.error === 'string' && data.error.toLowerCase().includes('overload'))) {
-        if (attempt < 3) { await new Promise(r => setTimeout(r, 2000 * attempt)); continue; }
-      }
-      break;
-    }
-    if (!response.ok || data.error) {
-      throw new Error(data.error?.message || data.error || `HTTP ${response.status}`);
-    }
-    if (!data.content || !Array.isArray(data.content)) {
-      throw new Error('Unexpected response: ' + JSON.stringify(data).substring(0, 200));
-    }
-    let text = data.content.map(b => b.text || '').join('');
-
-    // Fix any wrong odds Inga may have written — replace all 4 bet references with correct values
-    text = text.replace(/JF\s+moneyline\s*\([^)]*\)/gi, `JF moneyline (${jfML})`);
-    text = text.replace(/KF\s+moneyline\s*\([^)]*\)/gi, `KF moneyline (${kfML})`);
-    text = text.replace(/OVER\s+[\d.]+\s*\([^)]*\)/gi, `OVER ${ouLine2} (${ouOverOdds})`);
-    text = text.replace(/UNDER\s+[\d.]+\s*\([^)]*\)/gi, `UNDER ${ouLine2} (${ouUnderOdds})`);
-
-    // Parse confidence line for visual meter
-    // Use data-calculated odds — don't trust Inga's numbers
-    const jfConf = Math.round(jfWinRate * 100);
-    const kfConf = 100 - jfConf;
-    const jfOdds = jfML;
-    const kfOdds = kfML;
-
-    // Over/under: total games played = bestJF + bestKF (e.g. 3-1 = 4, 3-2 = 5)
-    const gameTotals = last20
-      .filter(m => m.bestJF !== null && m.bestKF !== null)
-      .map(m => m.bestJF + m.bestKF);
-    const avgGames = gameTotals.length
-      ? (gameTotals.reduce((a,b) => a+b, 0) / gameTotals.length)
-      : 8;
-    // Round to nearest 0.5 for a clean O/U line
-    const candidateLow = Math.floor(avgGames) - 0.5;
-    const candidateHigh = Math.floor(avgGames) + 0.5;
-    const pOverLow = gameTotals.filter(g => g > candidateLow).length / (gameTotals.length || 1);
-    const ouLine = (pOverLow >= 0.5 ? candidateLow : candidateHigh).toFixed(1);
-    // Calculate true probability of OVER based on distance from average
-    // line is always below avg (floor+0.5), so OVER is favorite
-    const ouLineNum = parseFloat(ouLine);
-    // Use historical data: pOver = fraction of matches where total > line
-    const pOver = gameTotals.length
-      ? gameTotals.filter(g => g > ouLineNum).length / gameTotals.length
-      : 0.55;
-    const pUnder = 1 - pOver;
-    const iOver = pOver * 1.10;
-    const iUnder = pUnder * 1.10;
-    const ouOverOddsDisp = iOver > 0.5
-      ? '-' + Math.round((iOver / (1 - iOver)) * 100)
-      : '+' + Math.round(((1 - iOver) / iOver) * 100);
-    const ouUnderOddsDisp = iUnder > 0.5
-      ? '-' + Math.round((iUnder / (1 - iUnder)) * 100)
-      : '+' + Math.round(((1 - iUnder) / iUnder) * 100);
-
-    const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
-
-    out.innerHTML = `
-      <div style="width:100%">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">${today}</div>
-
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-          <div style="font-size:10px;color:var(--jf);text-transform:uppercase;letter-spacing:0.08em;width:20px">JF</div>
-          <div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;display:flex">
-            <div style="width:${jfConf}%;background:var(--jf);border-radius:4px 0 0 4px"></div>
-            <div style="width:${kfConf}%;background:var(--kf);border-radius:0 4px 4px 0"></div>
-          </div>
-          <div style="font-size:10px;color:var(--kf);text-transform:uppercase;letter-spacing:0.08em;width:20px;text-align:right">KF</div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px;font-family:var(--display);font-weight:800">
-          <span style="color:var(--jf)">${jfConf}%</span>
-          <span style="color:var(--kf)">${kfConf}%</span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
-          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">JF moneyline</div>
-            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--jf)">${jfOdds}</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Total games O/U</div>
-            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--text)">${ouLine}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:4px">Over ${ouOverOddsDisp} / Under ${ouUnderOddsDisp}</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">KF moneyline</div>
-            <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--kf)">${kfOdds}</div>
-          </div>
-        </div>
-
-        <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${text.split('BETTING CARD:')[0].split('BETTING CARD')[0]}</div>
-        ${renderBettingCard(text)}
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:10px;color:var(--muted)">Based on last ${last20.length} H2H · 10% vig · O/U from avg ${avgGames.toFixed(1)} games</span>
-          <button onclick="generatePrediction()" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>
-        </div>
-      </div>
-    `;
-  } catch(err) {
-    out.innerHTML = `<div style="font-size:12px;color:#E8593C">Error: ${err.message}</div>`;
-  }
-  btn.disabled = false;
-  btn.textContent = '⚡ Generate';
-}
-
-function renderBettingCard(text) {
-  try {
-    var cardIdx = text.toUpperCase().indexOf('BETTING CARD');
-    if (cardIdx === -1) return '';
-    var cardText = text.substring(cardIdx);
-    var ranks = [
-      { label: 'Best bet',   color: '#E8A020' },
-      { label: 'Second bet', color: '#8899AA' },
-      { label: 'Third bet',  color: '#CD7F32' },
-      { label: 'Worst bet',  color: '#884444' },
-    ];
-    var lines = cardText.split('\n').filter(function(l){ return l.trim(); });
-    var cards = lines.slice(1).filter(function(l){ return /BEST|SECOND|THIRD|WORST/i.test(l); }).slice(0,4);
-    if (!cards.length) return '<div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">' + cardText + '</div>';
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">' +
-      cards.map(function(line, i) {
-        var r = ranks[i] || ranks[3];
-        var clean = line.replace(/\*+/g,'').replace(/BEST BET:|SECOND BET:|SECOND BEST:|THIRD BET:|WORST BET:/gi,'').trim();
-        var parts = clean.split(/\s+\u2014\s+|\s+-\s+/);
-        var bet = (parts[0]||'').trim();
-        var reason = (parts[1]||'').trim();
-        return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">' +
-          '<div style="font-size:10px;color:' + r.color + ';text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">' + r.label + '</div>' +
-          '<div style="font-size:13px;font-weight:500;color:#f0ede8;margin-bottom:4px">' + bet + '</div>' +
-          '<div style="font-size:11px;color:rgba(240,237,232,0.45);line-height:1.5">' + reason + '</div>' +
-          '</div>';
-      }).join('') + '</div>';
-  } catch(e) {
-    console.error('renderBettingCard error:', e);
-    return '';
-  }
-}
+// The prediction engine is loaded as an ES module below. It exposes
+// window.generatePrediction for the existing inline button handler.
 
 function renderBanner(text) {
   const wrap = document.getElementById('banner-wrap');
@@ -493,8 +218,15 @@ async function loadData() {
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
 
-    const resp = await fetch(CSV_URL);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    let resp;
+    try {
+      resp = await fetch('/api/sheet');
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    } catch (serverError) {
+      // Keep static/file-hosted copies usable when the Express API is unavailable.
+      resp = await fetch(CSV_URL);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    }
     const rows = parseCSV(await resp.text());
 
     // Read M8 = row index 7, col index 12 = BannerText
@@ -760,5 +492,6 @@ async function loadData() {
 
 loadData();
 </script>
+<script type="module" src="prediction/prediction.js"></script>
 </body>
 </html>
