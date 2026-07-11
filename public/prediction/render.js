@@ -10,37 +10,47 @@ export function renderNoData(out) {
   out.innerHTML = '<div style="font-size:12px;color:var(--muted)">No match data loaded yet — refresh the page first.</div>';
 }
 
-export function renderBettingCard(text) {
-  try {
-    const cardIndex = text.toUpperCase().indexOf('BETTING CARD');
-    if (cardIndex === -1) return '';
-    const cardText = text.substring(cardIndex);
-    const ranks = [
-      { label: 'Best bet', color: '#E8A020' },
-      { label: 'Second bet', color: '#8899AA' },
-      { label: 'Third bet', color: '#CD7F32' },
-      { label: 'Worst bet', color: '#884444' }
-    ];
-    const lines = cardText.split('\n').filter(line => line.trim());
-    const cards = lines.slice(1).filter(line => /BEST|SECOND|THIRD|WORST/i.test(line)).slice(0, 4);
-    if (!cards.length) {
-      return `<div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${cardText}</div>`;
+export function renderBettingCard(stats, lines) {
+  const totalMatches = stats.gameTotals.length;
+  const recentMatches = stats.last6GameTotals.length;
+  const bets = [
+    {
+      name: `JF moneyline (${lines.jfML})`,
+      score: stats.jfWinProbability,
+      reason: `JF has a ${lines.jfConfidence}% model win probability and a ${stats.jfWins}-${stats.kfWins} record in the sample.`
+    },
+    {
+      name: `KF moneyline (${lines.kfML})`,
+      score: stats.kfWinProbability,
+      reason: `KF has a ${lines.kfConfidence}% model win probability and a ${stats.kfWins}-${stats.jfWins} record in the sample.`
+    },
+    {
+      name: `OVER ${lines.ouLine} (${lines.ouOverOdds})`,
+      score: lines.pOver,
+      reason: `The over hit ${lines.overHits} of ${totalMatches} matches, including ${lines.last6OverHits} of the last ${recentMatches}.`
+    },
+    {
+      name: `UNDER ${lines.ouLine} (${lines.ouUnderOdds})`,
+      score: lines.pUnder,
+      reason: `The under hit ${lines.underHits} of ${totalMatches} matches, including ${lines.last6UnderHits} of the last ${recentMatches}.`
     }
-    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">' +
-      cards.map((line, index) => {
-        const rank = ranks[index] || ranks[3];
-        const clean = line.replace(/\*+/g, '').replace(/BEST BET:|SECOND BET:|SECOND BEST:|THIRD BET:|WORST BET:/gi, '').trim();
-        const parts = clean.split(/\s+\u2014\s+|\s+-\s+/);
-        return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">' +
-          `<div style="font-size:10px;color:${rank.color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">${rank.label}</div>` +
-          `<div style="font-size:13px;font-weight:500;color:#f0ede8;margin-bottom:4px">${(parts[0] || '').trim()}</div>` +
-          `<div style="font-size:11px;color:rgba(240,237,232,0.45);line-height:1.5">${(parts[1] || '').trim()}</div>` +
-          '</div>';
-      }).join('') + '</div>';
-  } catch (error) {
-    console.error('renderBettingCard error:', error);
-    return '';
-  }
+  ].sort((a, b) => b.score - a.score);
+  const ranks = [
+    { label: 'Highest model support', color: '#E8A020' },
+    { label: 'Second', color: '#8899AA' },
+    { label: 'Third', color: '#CD7F32' },
+    { label: 'Lowest model support', color: '#884444' }
+  ];
+
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">' +
+    bets.map((bet, index) => {
+      const rank = ranks[index];
+      return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px">' +
+        `<div style="font-size:10px;color:${rank.color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">${rank.label}</div>` +
+        `<div style="font-size:13px;font-weight:500;color:#f0ede8;margin-bottom:4px">${bet.name}</div>` +
+        `<div style="font-size:11px;color:rgba(240,237,232,0.45);line-height:1.5">${bet.reason}</div>` +
+        '</div>';
+    }).join('') + '</div>';
 }
 
 export function renderPrediction(out, text, stats, lines) {
@@ -98,7 +108,7 @@ export function renderPrediction(out, text, stats, lines) {
         </div>
       </div>
       <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${analysis}</div>
-      ${renderBettingCard(text)}
+      ${renderBettingCard(stats, lines)}
       <div style="background:rgba(232,89,60,0.06);border:1px solid rgba(232,89,60,0.18);border-radius:8px;padding:12px;margin-top:16px">
         <div style="font-size:10px;color:#E8593C;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px">Reasons to fade this prediction</div>
         <div style="font-size:11px;color:rgba(240,237,232,0.6);line-height:1.65">${stats.fadeReasons.map(reason => `• ${reason}`).join('<br>')}</div>

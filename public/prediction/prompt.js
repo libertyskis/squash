@@ -42,6 +42,7 @@ BETTING LINES (already calculated — do NOT recalculate or change these numbers
 - JF moneyline: ${lines.jfML} | KF moneyline: ${lines.kfML}
 - Total games O/U: ${lines.ouLine} | OVER pays ${lines.ouOverOdds} | UNDER pays ${lines.ouUnderOdds}
 - Games in a match can only be 3, 4, or 5 (best of 5 format)
+- At a 3.5 total: 3-0 is UNDER; 3-1 is OVER; 3-2 is OVER
 
 Provide a concise analysis:
 1. Current form (last 6 matches)
@@ -49,19 +50,5 @@ Provide a concise analysis:
 3. Physical/contextual factors from the notes
 4. Why the predicted score and favorite make sense
 
-Then end with exactly this betting card format — evaluate all 4 bets and rank them:
-
-BETTING CARD:
-🥇 BEST BET: [bet name] ([odds]) — [one sentence why]
-🥈 SECOND BEST: [bet name] ([odds]) — [one sentence why]
-🥉 THIRD BET: [bet name] ([odds]) — [one sentence why]
-❌ WORST BET: [bet name] ([odds]) — [one sentence why]
-
-The 4 bets to rank are:
-- JF moneyline (${lines.jfML})
-- KF moneyline (${lines.kfML})
-- OVER ${lines.ouLine} (${lines.ouOverOdds})
-- UNDER ${lines.ouLine} (${lines.ouUnderOdds})
-
-Treat the supplied calculations as fixed model outputs. Explain them; do not invent new statistics, odds, or sample sizes. These are model prices rather than external sportsbook quotes. Max 300 words.`;
+Do not create or rank a betting card; JavaScript renders that separately from the calculated data. Do not characterize an individual score as over or under—the deterministic trends already handle that. Treat the supplied calculations as fixed model outputs. Explain them; do not invent new statistics, odds, or sample sizes. These are model prices rather than external sportsbook quotes. Max 220 words.`;
 }

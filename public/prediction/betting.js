@@ -49,11 +49,3 @@ export function calculateBettingLines(stats, vigTotal = 1.10) {
     vigTotal
   };
 }
-
-export function normalizeBettingLines(text, lines) {
-  return text
-    .replace(/JF\s+moneyline\s*\([^)]*\)/gi, `JF moneyline (${lines.jfML})`)
-    .replace(/KF\s+moneyline\s*\([^)]*\)/gi, `KF moneyline (${lines.kfML})`)
-    .replace(/OVER\s+[\d.]+\s*\([^)]*\)/gi, `OVER ${lines.ouLine} (${lines.ouOverOdds})`)
-    .replace(/UNDER\s+[\d.]+\s*\([^)]*\)/gi, `UNDER ${lines.ouLine} (${lines.ouUnderOdds})`);
-}

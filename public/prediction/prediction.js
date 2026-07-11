@@ -1,5 +1,5 @@
 import { calculatePredictionStats } from './stats.js';
-import { calculateBettingLines, normalizeBettingLines } from './betting.js';
+import { calculateBettingLines } from './betting.js';
 import { buildPredictionPrompt } from './prompt.js';
 import { renderNoData, renderPrediction, renderPredictionError, renderPredictionLoading } from './render.js';
 
@@ -52,7 +52,7 @@ export async function generatePrediction() {
     const lines = calculateBettingLines(stats);
     const prompt = buildPredictionPrompt(stats, lines);
     const responseText = await requestPrediction(prompt, stats.last20.length, out);
-    renderPrediction(out, normalizeBettingLines(responseText, lines), stats, lines);
+    renderPrediction(out, responseText, stats, lines);
   } catch (error) {
     renderPredictionError(out, error.message);
   } finally {
