@@ -60,6 +60,20 @@ export function renderPrediction(out, text, stats, lines) {
       <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px;font-family:var(--display);font-weight:800">
         <span style="color:var(--jf)">${lines.jfConfidence}%</span><span style="color:var(--kf)">${lines.kfConfidence}%</span>
       </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Predicted score</div>
+          <div style="font-family:var(--display);font-size:20px;font-weight:800;color:var(--text)">${stats.predictedScore}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Model confidence</div>
+          <div style="font-family:var(--display);font-size:20px;font-weight:800;color:#E8A020">${stats.confidenceScore}/100</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Momentum</div>
+          <div style="font-family:var(--display);font-size:20px;font-weight:800;color:var(--text)">${stats.momentum.arrow} ${stats.momentum.label}</div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
         <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">JF moneyline</div>
@@ -75,8 +89,20 @@ export function renderPrediction(out, text, stats, lines) {
           <div style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--kf)">${lines.kfML}</div>
         </div>
       </div>
+      <div style="background:rgba(255,255,255,0.025);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Deterministic trends</div>
+        <div style="font-size:11px;color:rgba(240,237,232,0.72);line-height:1.7">
+          Last 6 match lengths: ${stats.last6GameTotals.join(', ') || 'N/A'}<br>
+          Over ${lines.ouLine}: ${lines.overHits}-${lines.underHits} (last ${stats.gameTotals.length}) · ${lines.last6OverHits}-${lines.last6UnderHits} (last 6)<br>
+          Favorite: ${lines.favorite} ${lines.favoriteLine} · implied ${Math.round((lines.favorite === 'JF' ? lines.jfImpliedProbability : lines.kfImpliedProbability) * 100)}%
+        </div>
+      </div>
       <div style="font-size:12px;color:rgba(240,237,232,0.75);line-height:1.8;white-space:pre-wrap">${analysis}</div>
       ${renderBettingCard(text)}
+      <div style="background:rgba(232,89,60,0.06);border:1px solid rgba(232,89,60,0.18);border-radius:8px;padding:12px;margin-top:16px">
+        <div style="font-size:10px;color:#E8593C;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px">Reasons to fade this prediction</div>
+        <div style="font-size:11px;color:rgba(240,237,232,0.6);line-height:1.65">${stats.fadeReasons.map(reason => `• ${reason}`).join('<br>')}</div>
+      </div>
       <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:10px;color:var(--muted)">Based on last ${stats.last20.length} H2H · 10% vig · O/U from avg ${stats.avgGames.toFixed(1)} games</span>
         <button data-action="regenerate-prediction" style="padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer">↻ Regenerate</button>

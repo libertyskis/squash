@@ -4,8 +4,16 @@ function americanOdds(probability) {
     : `+${Math.round(((1 - probability) / probability) * 100)}`;
 }
 
+function addVig(probability, vigTotal) {
+  return Math.max(0.01, Math.min(0.99, probability + (vigTotal - 1) / 2));
+}
+
+function impliedProbability(odds) {
+  const value = Number(odds);
+  return value < 0 ? Math.abs(value) / (Math.abs(value) + 100) : 100 / (value + 100);
+}
+
 export function calculateBettingLines(stats, vigTotal = 1.10) {
-  const kfWinRate = 1 - stats.jfWinRate;
   const candidateLow = Math.floor(stats.avgGames) - 0.5;
   const candidateHigh = Math.floor(stats.avgGames) + 0.5;
   const pOverLow = stats.gameTotals.filter(total => total > candidateLow).length / (stats.gameTotals.length || 1);
@@ -13,15 +21,31 @@ export function calculateBettingLines(stats, vigTotal = 1.10) {
   const pOver = stats.gameTotals.length
     ? stats.gameTotals.filter(total => total > Number(ouLine)).length / stats.gameTotals.length
     : 0.55;
+  const pUnder = 1 - pOver;
+  const jfML = americanOdds(addVig(stats.jfWinProbability, vigTotal));
+  const kfML = americanOdds(addVig(stats.kfWinProbability, vigTotal));
+  const ouOverOdds = americanOdds(addVig(pOver, vigTotal));
+  const ouUnderOdds = americanOdds(addVig(pUnder, vigTotal));
+  const last6OverHits = stats.last6GameTotals.filter(total => total > Number(ouLine)).length;
 
   return {
-    jfML: americanOdds(stats.jfWinRate * vigTotal),
-    kfML: americanOdds(kfWinRate * vigTotal),
+    jfML,
+    kfML,
     ouLine,
-    ouOverOdds: americanOdds(pOver * vigTotal),
-    ouUnderOdds: americanOdds((1 - pOver) * vigTotal),
-    jfConfidence: Math.round(stats.jfWinRate * 100),
-    kfConfidence: 100 - Math.round(stats.jfWinRate * 100),
+    ouOverOdds,
+    ouUnderOdds,
+    jfConfidence: Math.round(stats.jfWinProbability * 100),
+    kfConfidence: Math.round(stats.kfWinProbability * 100),
+    favorite: stats.favorite,
+    favoriteLine: stats.favorite === 'JF' ? jfML : kfML,
+    jfImpliedProbability: impliedProbability(jfML),
+    kfImpliedProbability: impliedProbability(kfML),
+    pOver,
+    pUnder,
+    overHits: stats.gameTotals.filter(total => total > Number(ouLine)).length,
+    underHits: stats.gameTotals.filter(total => total < Number(ouLine)).length,
+    last6OverHits,
+    last6UnderHits: stats.last6GameTotals.length - last6OverHits,
     vigTotal
   };
 }

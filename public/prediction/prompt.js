@@ -8,7 +8,20 @@ function decimal(value) {
 
 export function buildPredictionPrompt(stats, lines) {
   const form = stats.formStats;
-  return `You are a professional sports betting analyst specializing in squash. Analyze these last ${stats.last20.length} head-to-head squash matches between JF (Jeremy) and KF (Kyle) and provide today's match prediction.
+  return `You are a professional sports betting analyst specializing in squash. Write today's match preview using the deterministic calculations below. Do not perform or revise any arithmetic; interpret the supplied figures and explain what they mean.
+
+MODEL SNAPSHOT (calculated in JavaScript):
+- Favorite: ${lines.favorite}
+- Model line: ${lines.favorite} ${lines.favoriteLine}
+- Win probability: JF ${lines.jfConfidence}% | KF ${lines.kfConfidence}%
+- Model-price implied probability after vig: JF ${percent(lines.jfImpliedProbability)} | KF ${percent(lines.kfImpliedProbability)}
+- Predicted score: ${stats.predictedScore}
+- Model confidence: ${stats.confidenceScore}/100
+- Momentum: ${stats.momentum.arrow} ${stats.momentum.label} (${stats.momentum.score}/100)
+- Last 6 match lengths: ${stats.last6GameTotals.join(', ') || 'N/A'}
+- OVER ${lines.ouLine}: ${lines.overHits}-${lines.underHits} over the last ${stats.gameTotals.length}
+- Last 6 OVER ${lines.ouLine}: ${lines.last6OverHits}-${lines.last6UnderHits}
+- Fair total probability: OVER ${percent(lines.pOver)} | UNDER ${percent(lines.pUnder)}
 
 MATCH HISTORY (oldest to most recent):
 ${stats.matchSummary}
@@ -23,7 +36,7 @@ JF win rate last 6 sessions: ${percent(form.jfWinRateLast6)} vs prior 6: ${perce
 Games/session last 6: ${decimal(form.avgGamesLast6)} vs season avg: ${decimal(form.avgGamesAll)}
 Form trend: ${form.trend || 'N/A'}
 
-OVERALL: JF has won ${stats.jfWins} of the last ${stats.last20.length} matches (${Math.round(stats.jfWinRate * 100)}%), KF has won ${stats.kfWins} (${Math.round((1 - stats.jfWinRate) * 100)}%).
+OVERALL: Across ${stats.decidedMatches} decided matches in the sample, JF has won ${stats.jfWins} (${Math.round(stats.jfWinRate * 100)}%) and KF has won ${stats.kfWins} (${Math.round((1 - stats.jfWinRate) * 100)}%).
 
 BETTING LINES (already calculated — do NOT recalculate or change these numbers):
 - JF moneyline: ${lines.jfML} | KF moneyline: ${lines.kfML}
@@ -34,7 +47,7 @@ Provide a concise analysis:
 1. Current form (last 6 matches)
 2. Key patterns and trends
 3. Physical/contextual factors from the notes
-4. Brief prediction narrative
+4. Why the predicted score and favorite make sense
 
 Then end with exactly this betting card format — evaluate all 4 bets and rank them:
 
@@ -50,5 +63,5 @@ The 4 bets to rank are:
 - OVER ${lines.ouLine} (${lines.ouOverOdds})
 - UNDER ${lines.ouLine} (${lines.ouUnderOdds})
 
-Use ONLY these exact odds. Do not invent or change any numbers. Be precise with sample sizes. Max 300 words.`;
+Treat the supplied calculations as fixed model outputs. Explain them; do not invent new statistics, odds, or sample sizes. These are model prices rather than external sportsbook quotes. Max 300 words.`;
 }
